@@ -1,0 +1,4 @@
+CREATE OR REPLACE PROCEDURE create_booking()
+CREATE OR REPLACE PROCEDURE cancel_booking()
+CREATE OR REPLACE PROCEDURE check_in_booking()
+CREATE OR REPLACE PROCEDURE check_out_booking()
