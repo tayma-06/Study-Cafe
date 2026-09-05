@@ -1,3 +1,7 @@
+-- Extension Definitions
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+
 -- DOMAIN DEFINITIONS
 
 CREATE DOMAIN user_role AS TEXT CHECK (VALUE IN ('admin', 'customer'));
@@ -17,7 +21,7 @@ CREATE TYPE price_breakdown AS (
 -- TABLE DEFINITIONS
 
 CREATE TABLE users(
-    user_id BIGINT PRIMARY KEY,
+    user_id VARCHAR(10) PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
@@ -38,8 +42,8 @@ CREATE TABLE seats(
     status seat_status NOT NULL DEFAULT 'available'
 );
 CREATE TABLE bookings(
-    booking_id BIGINT PRIMARY KEY,
-    user_id BIGINT REFERENCES users(user_id),
+    booking_id NUMERIC(12,4) PRIMARY KEY,
+    user_id VARCHAR(10) REFERENCES users(user_id),
     seat_id INT REFERENCES seats(seat_id),
     time_slot TSTZRANGE NOT NULL,
     status booking_status NOT NULL DEFAULT 'pending',
@@ -54,18 +58,24 @@ CREATE TABLE services(
     price NUMERIC NOT NULL
 );
 CREATE TABLE booking_services(
-    booking_id BIGINT REFERENCES bookings(booking_id),
+    booking_id NUMERIC(12,4) REFERENCES bookings(booking_id),
     service_id INT REFERENCES services(service_id),
     PRIMARY KEY (booking_id, service_id),
     quantity INT NOT NULL DEFAULT 1,
     unit_price NUMERIC NOT NULL
 );
 CREATE TABLE payments(
-    payment_id BIGINT PRIMARY KEY,
-    booking_id BIGINT REFERENCES bookings(booking_id),
+    payment_id NUMERIC(12,4) PRIMARY KEY,
+    booking_id NUMERIC(12,4) REFERENCES bookings(booking_id),
     amount NUMERIC NOT NULL,
     method payment_method NOT NULL,
     status payment_status NOT NULL DEFAULT 'pending',
     paid_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Exclusion constraints to prevent overlapping bookings for the same seat
+ALTER TABLE bookings ADD CONSTRAINT no_overlapping_bookings EXCLUDE USING GIST (
+    seat_id WITH =,
+    time_slot WITH &&
 );
