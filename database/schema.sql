@@ -21,7 +21,7 @@ CREATE TYPE price_breakdown AS (
 -- TABLE DEFINITIONS
 
 CREATE TABLE users(
-    user_id VARCHAR(10) PRIMARY KEY,
+    user_id BIGINT PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE seats(
 );
 CREATE TABLE bookings(
     booking_id NUMERIC(12,4) PRIMARY KEY,
-    user_id VARCHAR(10) REFERENCES users(user_id),
+    user_id BIGINT REFERENCES users(user_id),
     seat_id INT REFERENCES seats(seat_id),
     time_slot TSTZRANGE NOT NULL,
     status booking_status NOT NULL DEFAULT 'pending',
