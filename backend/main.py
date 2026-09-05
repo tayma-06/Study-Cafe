@@ -1,10 +1,12 @@
 from fastapi import FastAPI
+from routes import router
 
 app = FastAPI(
     title="Study Café API",
-    description="Backend API for Study Café Slot Booking & Management System",
     version="1.0.0"
 )
+
+app.include_router(router)
 
 
 @app.get("/")
