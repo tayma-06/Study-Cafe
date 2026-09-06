@@ -40,21 +40,21 @@ function Home() {
       image: quietZone,
       description:
         "A calm, distraction-free space for focused individual study.",
-      price: "From ৳60/hour",
+      price: "৳100/hour",
     },
     {
       name: "Standard Zone",
       image: standardZone,
       description:
         "A comfortable study space for everyday work, reading and assignments.",
-      price: "View pricing",
+      price: "৳80/hour",
     },
     {
       name: "Group Zone",
       image: groupZone,
       description:
         "Private group spaces designed for discussions, teamwork and projects.",
-      price: "View pricing",
+      price: "৳150/hour",
     },
   ];
   const features = [
@@ -81,6 +81,47 @@ function Home() {
       title: "Transparent Pricing",
       description:
         "Know your booking and service costs before completing your reservation.",
+    },
+  ];
+  const pricing = [
+    {
+      zone: "Standard Zone",
+      price: "৳80",
+      per: "/hour",
+      description:
+        "A comfortable everyday space for reading, assignments and remote work.",
+      features: [
+        "Individual desks",
+        "Power outlets & Wi-Fi",
+        "Flexible timings",
+      ],
+      featured: false,
+    },
+    {
+      zone: "Quiet Zone",
+      price: "৳100",
+      per: "/hour",
+      description:
+        "A calm, distraction-free space for deep, focused individual study.",
+      features: [
+        "Silent environment",
+        "Desk lamp & cushion",
+        "Priority booking",
+      ],
+      featured: true,
+    },
+    {
+      zone: "Group Zone",
+      price: "৳150",
+      per: "/hour",
+      description:
+        "Private spaces designed for discussions, teamwork and projects.",
+      features: [
+        "Rooms for up to 6",
+        "Whiteboard & display",
+        "Reserve ahead",
+      ],
+      featured: false,
     },
   ];
   return (
@@ -190,6 +231,10 @@ function Home() {
           className="section features-section"
           id="services"
         >
+          <div
+            className="features-bg"
+            style={{ backgroundImage: `url(${reception})` }}
+          />
           <div className="section-heading centered">
             <span className="eyebrow">
               Why Study Café?
@@ -217,10 +262,65 @@ function Home() {
             ))}
           </div>
         </section>
+        {/* Pricing */}
+        <section
+          className="section pricing-section"
+          id="pricing"
+        >
+          <div className="section-heading centered">
+            <span className="eyebrow">
+              Simple, transparent rates
+            </span>
+            <h2>Pricing</h2>
+            <p>
+              Clear hourly rates for every space.
+              Your time, your pace.
+            </p>
+          </div>
+          <div className="pricing-grid">
+            {pricing.map((plan) => (
+              <article
+                className={
+                  "pricing-card" +
+                  (plan.featured ? " featured" : "")
+                }
+                key={plan.zone}
+              >
+                <h3>{plan.zone}</h3>
+                <p>{plan.description}</p>
+                <div className="pricing-amount">
+                  <span className="amount">
+                    {plan.price}
+                  </span>
+                  <span className="per">
+                    {plan.per}
+                  </span>
+                </div>
+                <ul>
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to="/booking"
+                  className={
+                    "btn btn-large " +
+                    (plan.featured
+                      ? "btn-primary"
+                      : "btn-secondary")
+                  }
+                >
+                  Book this zone
+                </Link>
+              </article>
+            ))}
+          </div>
+        </section>
         {/*CTA*/}
         <section
           className="cta-section"
-          id="pricing"
         >
           <div>
             <span className="eyebrow">
@@ -233,6 +333,12 @@ function Home() {
               Pick a zone, choose your seat and start
               your next productive session.
             </p>
+            <ul className="cta-services">
+              <li>Café on site</li>
+              <li>Fast Wi-Fi</li>
+              <li>Power outlets</li>
+              <li>Printing & scanning</li>
+            </ul>
           </div>
           <Link
             to="/booking"
