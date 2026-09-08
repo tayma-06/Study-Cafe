@@ -99,8 +99,49 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;  
 
+-- Updates seat status when a booking status changes
 CREATE OR REPLACE FUNCTION update_booking_status()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'checked_in' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        UPDATE seats SET status = 'unavailable'
+        WHERE seat_id = NEW.seat_id;
+    ELSIF NEW.status = 'checked_out' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        UPDATE seats SET status = 'available'
+        WHERE seat_id = NEW.seat_id;
+    ELSIF NEW.status = 'canceled' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        UPDATE seats SET status = 'available'
+        WHERE seat_id = NEW.seat_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Updates booking status based on payment status
 CREATE OR REPLACE FUNCTION update_payment_status()
-CREATE OR REPLACE FUNCTION check_seat_availability()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'completed' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        UPDATE bookings SET status = 'confirmed'
+        WHERE booking_id = NEW.booking_id AND status = 'pending';
+    ELSIF NEW.status = 'failed' AND OLD.status IS DISTINCT FROM NEW.status THEN
+        UPDATE bookings SET status = 'pending'
+        WHERE booking_id = NEW.booking_id AND status = 'confirmed';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Checks whether a seat is available for a requested time slot
+CREATE OR REPLACE FUNCTION check_seat_availability( p_seat_id seats.seat_id%TYPE, p_time_slot TSTZRANGE)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN NOT EXISTS (
+        SELECT 1
+        FROM bookings
+        WHERE seat_id = p_seat_id AND status <> 'canceled' AND time_slot && p_time_slot
+    );
+END;
+$$ LANGUAGE plpgsql;
 
 
