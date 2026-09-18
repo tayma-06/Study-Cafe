@@ -59,9 +59,8 @@ def create_user_route(user: UserCreate):
         new_user = create_user(
             user.name,
             user.email,
-            user.password,
-            user.role
-        )
+            user.password
+)
 
     except Exception as e:
         if "users_email_key" in str(e):

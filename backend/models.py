@@ -30,7 +30,7 @@ def get_user_by_id(user_id):
             return cur.fetchone()
 
 
-def create_user(name, email, password, role):
+def create_user(name, email, password):
     password_hash = bcrypt.hashpw(
         password.encode("utf-8"),
         bcrypt.gensalt()
@@ -41,10 +41,10 @@ def create_user(name, email, password, role):
             cur.execute(
                 """
                 INSERT INTO users (name, email, password, role)
-                VALUES (%s, %s, %s, %s)
+                VALUES (%s, %s, %s, 'customer')
                 RETURNING user_id, name, email, role, created_at;
                 """,
-                (name, email, password_hash, role)
+                (name, email, password_hash)
             )
 
             return cur.fetchone()
