@@ -37,8 +37,6 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION generate_payment_id()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Since payment_id is now BIGINT GENERATED ALWAYS AS IDENTITY,
-    -- we set it to NULL to let the database generate the value.
     NEW.payment_id := NULL;
     RETURN NEW;
 END;
