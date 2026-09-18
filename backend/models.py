@@ -1,3 +1,5 @@
+import bcrypt
+
 from database import get_connection
 
 
@@ -23,6 +25,26 @@ def get_user_by_id(user_id):
                 WHERE user_id = %s;
                 """,
                 (user_id,)
+            )
+
+            return cur.fetchone()
+
+
+def create_user(name, email, password, role):
+    password_hash = bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO users (name, email, password, role)
+                VALUES (%s, %s, %s, %s)
+                RETURNING user_id, name, email, role, created_at;
+                """,
+                (name, email, password_hash, role)
             )
 
             return cur.fetchone()
