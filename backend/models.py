@@ -48,3 +48,18 @@ def create_user(name, email, password, role):
             )
 
             return cur.fetchone()
+
+
+def get_user_by_email(email):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT user_id, name, email, password, role, created_at
+                FROM users
+                WHERE email = %s;
+                """,
+                (email,)
+            )
+
+            return cur.fetchone()

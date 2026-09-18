@@ -1,7 +1,19 @@
+import bcrypt
+
 from fastapi import APIRouter, HTTPException
 
-from models import get_all_users, get_user_by_id, create_user
-from schemas import UserCreate, UserResponse
+from models import (
+    create_user,
+    get_all_users,
+    get_user_by_email,
+    get_user_by_id,
+)
+from schemas import (
+    LoginRequest,
+    LoginResponse,
+    UserCreate,
+    UserResponse,
+)
 
 router = APIRouter()
 
@@ -69,4 +81,33 @@ def create_user_route(user: UserCreate):
         "email": new_user[2],
         "role": new_user[3],
         "created_at": new_user[4],
+    }
+
+
+@router.post("/login", response_model=LoginResponse)
+def login(credentials: LoginRequest):
+    user = get_user_by_email(credentials.email)
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    password_ok = bcrypt.checkpw(
+        credentials.password.encode("utf-8"),
+        user[3].encode("utf-8")
+    )
+
+    if not password_ok:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    return {
+        "user_id": user[0],
+        "name": user[1],
+        "email": user[2],
+        "role": user[4],
     }
