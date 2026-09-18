@@ -15,7 +15,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Automatically generate booking_id for new bookings
+-- Automatically generate booking_id for new bookings 
+-- Format: YYYYMMDD + 4 decimal places (e.g., 20240101.0001)
 CREATE OR REPLACE FUNCTION generate_booking_id()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -35,16 +36,10 @@ $$ LANGUAGE plpgsql;
 -- Automatically generate payment_id for new payments
 CREATE OR REPLACE FUNCTION generate_payment_id()
 RETURNS TRIGGER AS $$
-DECLARE
-    max_id payments.payment_id%TYPE;
 BEGIN
-    SELECT MAX(payment_id) INTO max_id FROM payments
-    WHERE TO_CHAR(created_at, 'YYYYMMDD') = TO_CHAR(NEW.created_at, 'YYYYMMDD');
-    IF max_id IS NULL THEN
-        NEW.payment_id := TO_CHAR(NEW.created_at, 'YYYYDDMM') :: NUMERIC(12,4) + 0.0001;
-    ELSE
-        NEW.payment_id := max_id + 0.0001;
-    END IF;
+    -- Since payment_id is now BIGINT GENERATED ALWAYS AS IDENTITY,
+    -- we set it to NULL to let the database generate the value.
+    NEW.payment_id := NULL;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

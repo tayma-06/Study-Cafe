@@ -13,15 +13,15 @@ CREATE DOMAIN payment_method AS TEXT CHECK (VALUE IN ('credit_card', 'mobile_ban
 -- COMPOSITE TYPE DEFINITIONS
 
 CREATE TYPE price_breakdown AS (
-    base_price NUMERIC,
-    service_cost NUMERIC,
-    total_price NUMERIC
+    base_price NUMERIC(10,2),
+    service_cost NUMERIC(10,2),
+    total_price NUMERIC(10,2)
 );
 
 -- TABLE DEFINITIONS
 
 CREATE TABLE users(
-    user_id BIGINT PRIMARY KEY,
+    user_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
@@ -39,6 +39,7 @@ CREATE TABLE seats(
     seat_id SERIAL PRIMARY KEY,
     zone_id INT REFERENCES zones(zone_id),
     seat_number TEXT NOT NULL,
+    UNIQUE (zone_id, seat_number)
     status seat_status NOT NULL DEFAULT 'available'
 );
 CREATE TABLE bookings(
@@ -47,9 +48,9 @@ CREATE TABLE bookings(
     seat_id INT REFERENCES seats(seat_id),
     time_slot TSTZRANGE NOT NULL,
     status booking_status NOT NULL DEFAULT 'pending',
-    checked_in_at TIMESTAMP,
-    checked_out_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    checked_in_at TIMESTAMPTZ,
+    checked_out_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE services(
     service_id SERIAL PRIMARY KEY,
@@ -65,13 +66,13 @@ CREATE TABLE booking_services(
     unit_price NUMERIC NOT NULL
 );
 CREATE TABLE payments(
-    payment_id NUMERIC(12,4) PRIMARY KEY,
-    booking_id NUMERIC(12,4) REFERENCES bookings(booking_id),
+    payment_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    booking_id NUMERIC(12,4) REFERENCES bookings(booking_id) UNIQUE,
     amount NUMERIC NOT NULL,
     method payment_method NOT NULL,
     status payment_status NOT NULL DEFAULT 'pending',
-    paid_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    paid_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Exclusion constraints to prevent overlapping bookings for the same seat

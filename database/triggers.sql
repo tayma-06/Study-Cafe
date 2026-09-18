@@ -10,12 +10,6 @@ BEFORE INSERT ON bookings
 FOR EACH ROW
 EXECUTE FUNCTION generate_booking_id();
 
--- Automatically generate payment_id for new payments
-CREATE TRIGGER trg_generate_payment_id
-BEFORE INSERT ON payments
-FOR EACH ROW
-EXECUTE FUNCTION generate_payment_id();
-
 -- Automatically updates the booking status
 CREATE TRIGGER trg_booking_status_update
 AFTER UPDATE ON bookings
