@@ -39,7 +39,7 @@ CREATE TABLE seats(
     seat_id SERIAL PRIMARY KEY,
     zone_id INT REFERENCES zones(zone_id),
     seat_number TEXT NOT NULL,
-    UNIQUE (zone_id, seat_number)
+    UNIQUE (zone_id, seat_number),
     status seat_status NOT NULL DEFAULT 'available'
 );
 CREATE TABLE bookings(
