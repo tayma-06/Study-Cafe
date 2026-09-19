@@ -222,48 +222,19 @@ def add_services_to_booking(booking_id, services, quantities):
 
         conn.commit()
 
+# Create a new payment in the database by calling the stored procedure create_payment with the provided booking ID, amount, payment method, and payment status.
 def create_payment(booking_id, amount, method, status):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO payments (booking_id,
-                    amount,
-                    method,
-                    status,
-                    paid_at
-                )
-                VALUES (
-                    %s,
-                    %s,
+                CALL create_payment(
+                    %s::numeric,
+                    %s::numeric,
                     %s::payment_method,
-                    %s::payment_status,
-                    CASE
-                        WHEN %s::payment_status = 'completed'
-                        THEN CURRENT_TIMESTAMP
-                        ELSE NULL
-                    END
-                )
-                RETURNING
-                    payment_id,
-                    booking_id,
-                    amount,
-                    method,
-                    status,
-                    paid_at,
-                    created_at;
+                    %s::payment_status
+                );
                 """,
-                (
-                    booking_id,
-                    amount,
-                    method,
-                    status,
-                    status
-                )
+                (booking_id, amount, method, status)
             )
-
-            payment = cur.fetchone()
-
         conn.commit()
-
-    return payment

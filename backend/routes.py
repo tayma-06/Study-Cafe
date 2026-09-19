@@ -16,6 +16,8 @@ from models import (
     get_bookings_by_user,
     get_all_services,
     add_services_to_booking,
+    create_payment,
+    get_payment_by_booking_id,
 )
 
 from schemas import (
@@ -31,6 +33,8 @@ from schemas import (
     UserBookingResponse,
     ServiceResponse,
     BookingServicesCreate,
+    PaymentCreate,
+    PaymentResponse,
 )
 
 router = APIRouter()
@@ -305,6 +309,60 @@ def add_booking_services(
         return {
             "message": "Services added to booking successfully.",
             "booking_id": booking_id
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+# Get payment information for a specific booking API endpoint
+@router.get(
+    "/payments/{booking_id}",
+    response_model=PaymentResponse
+)
+def get_payment(booking_id: float):
+    payment = get_payment_by_booking_id(booking_id)
+
+    if payment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment not found for this booking."
+        )
+
+    return {
+        "payment_id": payment[0],
+        "booking_id": payment[1],
+        "amount": payment[2],
+        "method": payment[3],
+        "status": payment[4],
+        "paid_at": payment[5],
+        "created_at": payment[6],
+    }
+
+# Create a new payment for a booking API endpoint
+@router.post(
+    "/payments",
+    response_model=PaymentResponse
+)
+def create_payment_route(data: PaymentCreate):
+    try:
+        payment = create_payment(
+            data.booking_id,
+            data.amount,
+            data.method,
+            data.status
+        )
+
+        return {
+            "payment_id": payment[0],
+            "booking_id": payment[1],
+            "amount": payment[2],
+            "method": payment[3],
+            "status": payment[4],
+            "paid_at": payment[5],
+            "created_at": payment[6],
         }
 
     except Exception as e:
