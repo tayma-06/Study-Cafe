@@ -55,6 +55,9 @@ class BookingCreate(BaseModel):
 
 # Response model for booking information, including booking ID, user ID, seat ID, status, and creation timestamp.
 class BookingResponse(BaseModel):
+    model_config = ConfigDict(
+        json_encoders={Decimal: lambda v: str(v)}
+    )
     booking_id: Decimal
     user_id: int
     seat_id: int
