@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from decimal import Decimal
 
 # Response model for user creation, including name, email, and password fields.
@@ -30,6 +30,7 @@ class LoginResponse(BaseModel):
 
 # Response model for zone information, including zone ID, name, description, price per hour, and a list of facilities.
 class ZoneResponse(BaseModel):
+    model_config = ConfigDict(json_encoders={Decimal: lambda v: float(v)})
     zone_id: int
     name: str
     description: str
