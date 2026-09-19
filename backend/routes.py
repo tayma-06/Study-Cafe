@@ -12,8 +12,10 @@ from models import (
     get_seats_by_zone,
     get_seat_by_id,
     create_booking,
-    get_booking_by_id, 
+    get_booking_by_id,
     get_bookings_by_user,
+    get_all_services,
+    add_services_to_booking,
 )
 
 from schemas import (
@@ -27,6 +29,8 @@ from schemas import (
     BookingResponse,
     BookingDetail,
     UserBookingResponse,
+    ServiceResponse,
+    BookingServicesCreate,
 )
 
 router = APIRouter()
@@ -263,3 +267,48 @@ def get_user_bookings(user_id: int):
         }
         for b in bookings
     ]
+
+# Get all available services API endpoint
+@router.get("/services", response_model=list[ServiceResponse])
+def get_services():
+    services = get_all_services()
+
+    return [
+        {
+            "service_id": service[0],
+            "name": service[1],
+            "description": service[2],
+            "price": service[3],
+        }
+        for service in services
+    ]
+
+# Add services to a booking API endpoint
+@router.post("/bookings/{booking_id}/services")
+def add_booking_services(
+    booking_id: float,
+    data: BookingServicesCreate
+):
+    if len(data.services) != len(data.quantities):
+        raise HTTPException(
+            status_code=400,
+            detail="Services and quantities must have the same length."
+        )
+
+    try:
+        add_services_to_booking(
+            booking_id,
+            data.services,
+            data.quantities
+        )
+
+        return {
+            "message": "Services added to booking successfully.",
+            "booking_id": booking_id
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )

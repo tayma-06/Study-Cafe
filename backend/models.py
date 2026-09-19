@@ -193,3 +193,31 @@ def get_bookings_by_user(user_id):
                 ORDER BY created_at DESC;
             """, (user_id,))
             return cur.fetchall()
+
+# Retrieve all available services from the database.
+def get_all_services():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT service_id, name, description, price
+                FROM services
+                ORDER BY service_id;
+            """)
+            return cur.fetchall()
+
+# Add services to a specific booking in the database by calling the stored procedure add_services_to_booking with the provided booking ID, services, and quantities.
+def add_services_to_booking(booking_id, services, quantities):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CALL add_services_to_booking(
+                    %s::numeric,
+                    %s::integer[],
+                    %s::integer[]
+                );
+                """,
+                (booking_id, services, quantities)
+            )
+
+        conn.commit()

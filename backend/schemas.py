@@ -89,3 +89,18 @@ class UserBookingResponse(BaseModel):
     checked_in_at: datetime | None
     checked_out_at: datetime | None
     created_at: datetime
+
+# Response model for service information.
+class ServiceResponse(BaseModel):
+    model_config = ConfigDict(
+        json_encoders={Decimal: lambda v: float(v)}
+    )
+    service_id: int
+    name: str
+    description: str | None
+    price: Decimal
+
+# Request model for booking services creation, including a list of service IDs and a list of corresponding quantities.
+class BookingServicesCreate(BaseModel):
+    services: list[int]
+    quantities: list[int]
