@@ -139,4 +139,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+-- Returns the available seats for a given time slot and optional zone filter
+CREATE OR REPLACE FUNCTION get_available_seats(
+    p_time_slot TSTZRANGE,
+    p_zone_id INT DEFAULT NULL
+)
+RETURNS TABLE (
+    seat_id INT,
+    seat_number TEXT,
+    zone_id INT,
+    zone_name TEXT,
+    price_per_hour NUMERIC
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT s.seat_id, s.seat_number, z.zone_id, z.name, z.price_per_hour
+    FROM seats s
+    JOIN zones z ON s.zone_id = z.zone_id
+    WHERE s.status = 'available'
+        AND (p_zone_id IS NULL OR s.zone_id = p_zone_id)
+        AND NOT EXISTS (
+            SELECT 1
+            FROM bookings b
+            WHERE b.seat_id = s.seat_id AND b.status <> 'canceled' AND b.time_slot && p_time_slot)
+    ORDER BY z.zone_id, s.seat_number;
+END;
+$$;
