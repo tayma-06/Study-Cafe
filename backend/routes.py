@@ -1,6 +1,8 @@
 import bcrypt
 
 from fastapi import APIRouter, HTTPException
+from datetime import date, time, datetime
+from typing import Optional
 
 from models import (
     create_user,
@@ -21,7 +23,8 @@ from models import (
     calculate_total_price,
     cancel_booking,
     check_in_booking,
-    check_out_booking
+    check_out_booking,
+    get_available_seats,
 )
 
 from schemas import (
@@ -40,6 +43,7 @@ from schemas import (
     PaymentCreate,
     PaymentResponse,
     PriceBreakdownResponse,
+    AvailableSeatResponse,
 )
 
 router = APIRouter()
@@ -408,6 +412,7 @@ def check_in_booking_route(booking_id: float):
             detail=str(e)
         )
 
+# Check-out a booking API endpoint
 @router.post("/bookings/{booking_id}/check-out")
 def check_out_booking_route(booking_id: float):
     try:
@@ -418,3 +423,25 @@ def check_out_booking_route(booking_id: float):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+# Get available seats for a specific date and time range API endpoint
+@router.get("/availability", response_model=list[AvailableSeatResponse])
+def get_availability(
+    date: date,
+    start_time: time,
+    end_time: time,
+    zone_id: Optional[int] = None
+):
+    start_dt = datetime.combine(date, start_time)
+    end_dt = datetime.combine(date, end_time)
+    seats = get_available_seats(start_dt, end_dt, zone_id)
+    return [
+        {
+            "seat_id": seat[0],
+            "seat_number": seat[1],
+            "zone_id": seat[2],
+            "zone_name": seat[3],
+            "price_per_hour": seat[4],
+        }
+        for seat in seats
+    ]

@@ -128,3 +128,11 @@ class PriceBreakdownResponse(BaseModel):
     base_price: Decimal
     service_cost: Decimal
     total_price: Decimal
+
+# Response model for available seat information, including seat ID, seat number, zone ID, zone name, and price per hour.
+class AvailableSeatResponse(BaseModel):
+    seat_id: int
+    seat_number: str
+    zone_id: int
+    zone_name: str
+    price_per_hour: Decimal

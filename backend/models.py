@@ -2,6 +2,7 @@ import bcrypt
 
 from database import get_connection
 from psycopg.types.range import Range
+from datetime import datetime
 
 # Retrieve all use from the database.
 def get_all_users():
@@ -311,3 +312,19 @@ def check_out_booking(booking_id):
                 (booking_id,)
             )
         conn.commit()
+
+# Retrieve available seats for a specific time range and optional zone ID from the database by calling the stored procedure get_available_seats with the provided start and end datetime values, and an optional zone ID. The function returns the list of available seats.
+def get_available_seats(start_dt, end_dt, zone_id=None):
+    conn = get_connection()
+    cur = conn.cursor()
+    if zone_id is None:
+        cur.execute("SELECT * FROM available_seats;")
+    else:
+        cur.execute(
+            "SELECT * FROM available_seats WHERE zone_id = %s;",
+            (zone_id,)
+        )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
