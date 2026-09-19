@@ -1,6 +1,6 @@
 import bcrypt
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from datetime import date, time, datetime
 from typing import Optional
 
@@ -27,6 +27,12 @@ from models import (
     get_available_seats,
 )
 
+from auth import (
+    create_access_token,
+    get_current_user,
+    require_admin,
+)
+
 from schemas import (
     LoginRequest,
     LoginResponse,
@@ -48,9 +54,9 @@ from schemas import (
 
 router = APIRouter()
 
-# Get all users API endpoint
+# Get all users API endpoint (admin only)
 @router.get("/users", response_model=list[UserResponse])
-def get_users():
+def get_users(current_user: dict = Depends(require_admin)):
     users = get_all_users()
     return [
         {
@@ -63,9 +69,11 @@ def get_users():
         for user in users
     ]
 
-# Get a user by their ID API endpoint
+# Get a user by their ID API endpoint (self or admin)
 @router.get("/users/{user_id}", response_model=UserResponse)
-def get_user(user_id: int):
+def get_user(user_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin" and current_user["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your account")
     user = get_user_by_id(user_id)
     if user is None:
         raise HTTPException(
@@ -80,7 +88,7 @@ def get_user(user_id: int):
         "created_at": user[4],
     }
 
-# Create a new user API endpoint
+# Create a new user API endpoint (registration — no auth required)
 @router.post("/users", response_model=UserResponse, status_code=201)
 def create_user_route(user: UserCreate):
     try:
@@ -88,7 +96,7 @@ def create_user_route(user: UserCreate):
             user.name,
             user.email,
             user.password
-   )
+        )
     except Exception as e:
         if "users_email_key" in str(e):
             raise HTTPException(
@@ -125,14 +133,16 @@ def login(credentials: LoginRequest):
             status_code=401,
             detail="Invalid email or password"
         )
+    token = create_access_token(user_id=user[0], role=user[4])
     return {
         "user_id": user[0],
         "name": user[1],
         "email": user[2],
         "role": user[4],
+        "token": token,
     }
 
-# Zone and Seat API endpoints
+# Zone and Seat API endpoints (public — anyone can browse)
 @router.get("/zones", response_model=list[ZoneResponse])
 def get_zones():
     zones = get_all_zones()
@@ -192,16 +202,41 @@ def get_seat(seat_id: int):
         "status": seat[3],
     }
 
-# Create a new booking API endpoint
+# Get all bookings for the current logged-in user API endpoint
+@router.get("/bookings/me", response_model=list[UserBookingResponse])
+def get_my_bookings(current_user: dict = Depends(get_current_user)):
+    bookings = get_bookings_by_user(current_user["user_id"])
+    return [
+        {
+            "booking_id": b[0],
+            "user_id": b[1],
+            "seat_id": b[2],
+            "time_slot": str(b[3]),
+            "booking_status": b[4],
+            "checked_in_at": b[5],
+            "checked_out_at": b[6],
+            "created_at": b[7],
+            "seat_number": b[8],
+            "zone_name": b[9],
+            "payment_status": b[10],
+            "payment_amount": b[11],
+        }
+        for b in bookings
+    ]
+
+# Create a new booking API endpoint (requires login; user_id comes from the token)
 @router.post(
     "/bookings",
     response_model=BookingResponse,
     status_code=201,
 )
-def create_booking_route(booking: BookingCreate):
+def create_booking_route(
+    booking: BookingCreate,
+    current_user: dict = Depends(get_current_user),
+):
     try:
         new_booking = create_booking(
-            booking.user_id,
+            current_user["user_id"],
             booking.seat_id,
             booking.start_time,
             booking.end_time,
@@ -221,12 +256,14 @@ def create_booking_route(booking: BookingCreate):
         "created_at": new_booking[4],
     }
 
-# Get a specific booking by its ID API endpoint
+# Get a specific booking by its ID API endpoint (owner or admin only)
 @router.get("/bookings/{booking_id}", response_model=BookingDetail)
-def get_booking(booking_id: str):
+def get_booking(booking_id: str, current_user: dict = Depends(get_current_user)):
     booking = get_booking_by_id(booking_id)
     if booking is None:
         raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
     return {
         "booking_id": booking[0],
         "user_id": booking[1],
@@ -238,10 +275,15 @@ def get_booking(booking_id: str):
         "created_at": booking[7],
     }
 
-# Get all bookings for a specific user API endpoint
+# Get all bookings for a specific user API endpoint (owner or admin only)
 @router.get("/users/{user_id}/bookings",
             response_model=list[UserBookingResponse])
-def get_user_bookings(user_id: int):
+def get_user_bookings(
+    user_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    if current_user["role"] != "admin" and current_user["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your bookings")
     bookings = get_bookings_by_user(user_id)
     return [
         {
@@ -261,7 +303,7 @@ def get_user_bookings(user_id: int):
         for b in bookings
     ]
 
-# Get all available services API endpoint
+# Get all available services API endpoint (public)
 @router.get("/services", response_model=list[ServiceResponse])
 def get_services():
     services = get_all_services()
@@ -275,12 +317,18 @@ def get_services():
         for service in services
     ]
 
-# Add services to a booking API endpoint
+# Add services to a booking API endpoint (owner or admin only)
 @router.post("/bookings/{booking_id}/services")
 def add_booking_services(
     booking_id: float,
-    data: BookingServicesCreate
+    data: BookingServicesCreate,
+    current_user: dict = Depends(get_current_user),
 ):
+    booking = get_booking_by_id(booking_id)
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
     if len(data.services) != len(data.quantities):
         raise HTTPException(
             status_code=400,
@@ -302,14 +350,22 @@ def add_booking_services(
             detail=str(e)
         )
 
-# Get payment information for a specific booking API endpoint
+# Get payment information for a specific booking API endpoint (owner or admin only)
 @router.get(
     "/payments/{booking_id}",
     response_model=PaymentResponse
 )
-def get_payment(booking_id: float):
-    payment = get_payment_by_booking_id(booking_id)
+def get_payment(
+    booking_id: float,
+    current_user: dict = Depends(get_current_user),
+):
+    booking = get_booking_by_id(booking_id)
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
 
+    payment = get_payment_by_booking_id(booking_id)
     if payment is None:
         raise HTTPException(
             status_code=404,
@@ -325,12 +381,20 @@ def get_payment(booking_id: float):
         "created_at": payment[6],
     }
 
-# Create a new payment for a booking API endpoint
+# Create a new payment for a booking API endpoint (owner or admin only)
 @router.post(
     "/payments",
     response_model=PaymentResponse
 )
-def create_payment_route(data: PaymentCreate):
+def create_payment_route(
+    data: PaymentCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    booking = get_booking_by_id(data.booking_id)
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
     try:
         payment = create_payment(
             data.booking_id,
@@ -353,12 +417,20 @@ def create_payment_route(data: PaymentCreate):
             detail=str(e)
         )
 
-# Get the price breakdown for a specific booking API endpoint
+# Get the price breakdown for a specific booking API endpoint (owner or admin only)
 @router.get(
     "/bookings/{booking_id}/price",
     response_model=PriceBreakdownResponse
 )
-def get_booking_price(booking_id: float):
+def get_booking_price(
+    booking_id: float,
+    current_user: dict = Depends(get_current_user),
+):
+    booking = get_booking_by_id(booking_id)
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
     try:
         result = calculate_total_price(booking_id)
 
@@ -382,9 +454,17 @@ def get_booking_price(booking_id: float):
             detail=str(e)
         )
 
-# Cancel a booking API endpoint
+# Cancel a booking API endpoint (owner or admin only)
 @router.post("/bookings/{booking_id}/cancel")
-def cancel_booking_route(booking_id: float):
+def cancel_booking_route(
+    booking_id: float,
+    current_user: dict = Depends(get_current_user),
+):
+    booking = get_booking_by_id(booking_id)
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
     try:
         cancel_booking(booking_id)
         return {
@@ -397,9 +477,17 @@ def cancel_booking_route(booking_id: float):
             detail=str(e)
         )
 
-# Check-in a booking API endpoint
+# Check-in a booking API endpoint (owner or admin only)
 @router.post("/bookings/{booking_id}/check-in")
-def check_in_booking_route(booking_id: float):
+def check_in_booking_route(
+    booking_id: float,
+    current_user: dict = Depends(get_current_user),
+):
+    booking = get_booking_by_id(booking_id)
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
     try:
         check_in_booking(booking_id)
         return {
@@ -412,9 +500,17 @@ def check_in_booking_route(booking_id: float):
             detail=str(e)
         )
 
-# Check-out a booking API endpoint
+# Check-out a booking API endpoint (owner or admin only)
 @router.post("/bookings/{booking_id}/check-out")
-def check_out_booking_route(booking_id: float):
+def check_out_booking_route(
+    booking_id: float,
+    current_user: dict = Depends(get_current_user),
+):
+    booking = get_booking_by_id(booking_id)
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+    if current_user["role"] != "admin" and booking[1] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
     try:
         check_out_booking(booking_id)
         return {
@@ -424,7 +520,7 @@ def check_out_booking_route(booking_id: float):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# Get available seats for a specific date and time range API endpoint
+# Get available seats for a specific date and time range API endpoint (public)
 @router.get("/availability", response_model=list[AvailableSeatResponse])
 def get_availability(
     date: date,

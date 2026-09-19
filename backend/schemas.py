@@ -27,6 +27,7 @@ class LoginResponse(BaseModel):
     name: str
     email: EmailStr
     role: str
+    token: str
 
 # Response model for zone information, including zone ID, name, description, price per hour, and a list of facilities.
 class ZoneResponse(BaseModel):
