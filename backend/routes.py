@@ -17,7 +17,7 @@ from schemas import (
 
 router = APIRouter()
 
-
+# Get all users API endpoint
 @router.get("/users", response_model=list[UserResponse])
 def get_users():
     users = get_all_users()
@@ -33,7 +33,7 @@ def get_users():
         for user in users
     ]
 
-
+# Get a user by their ID API endpoint
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: int):
     user = get_user_by_id(user_id)
@@ -52,7 +52,7 @@ def get_user(user_id: int):
         "created_at": user[4],
     }
 
-
+# Create a new user API endpoint
 @router.post("/users", response_model=UserResponse, status_code=201)
 def create_user_route(user: UserCreate):
     try:
@@ -82,7 +82,7 @@ def create_user_route(user: UserCreate):
         "created_at": new_user[4],
     }
 
-
+# User login API endpoint
 @router.post("/login", response_model=LoginResponse)
 def login(credentials: LoginRequest):
     user = get_user_by_email(credentials.email)

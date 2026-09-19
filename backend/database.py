@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
+# This function establishes a connection to the PostgreSQL database using the psycopg library. 
+# It retrieves the database connection parameters from environment variables and returns a connection object that can be used to interact with the database.
 def get_connection():
     return psycopg.connect(
         host=os.getenv("DB_HOST"),
