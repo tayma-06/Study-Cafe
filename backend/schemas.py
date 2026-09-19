@@ -104,3 +104,20 @@ class ServiceResponse(BaseModel):
 class BookingServicesCreate(BaseModel):
     services: list[int]
     quantities: list[int]
+
+# Request model for payment creation, including booking ID, amount, method, and status fields.
+class PaymentCreate(BaseModel):
+    booking_id: Decimal
+    amount: Decimal
+    method: str
+    status: str = "pending"
+
+# Response model for payment information, including payment ID, booking ID, amount, method, status, paid timestamp, and creation timestamp.
+class PaymentResponse(BaseModel):
+    payment_id: int
+    booking_id: Decimal
+    amount: Decimal
+    method: str
+    status: str
+    paid_at: datetime | None
+    created_at: datetime

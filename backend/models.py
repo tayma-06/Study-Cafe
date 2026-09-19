@@ -221,3 +221,49 @@ def add_services_to_booking(booking_id, services, quantities):
             )
 
         conn.commit()
+
+def create_payment(booking_id, amount, method, status):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO payments (booking_id,
+                    amount,
+                    method,
+                    status,
+                    paid_at
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s::payment_method,
+                    %s::payment_status,
+                    CASE
+                        WHEN %s::payment_status = 'completed'
+                        THEN CURRENT_TIMESTAMP
+                        ELSE NULL
+                    END
+                )
+                RETURNING
+                    payment_id,
+                    booking_id,
+                    amount,
+                    method,
+                    status,
+                    paid_at,
+                    created_at;
+                """,
+                (
+                    booking_id,
+                    amount,
+                    method,
+                    status,
+                    status
+                )
+            )
+
+            payment = cur.fetchone()
+
+        conn.commit()
+
+    return payment

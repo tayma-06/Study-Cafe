@@ -116,3 +116,35 @@ BEGIN
     END IF;
 END;
 $$;
+
+
+-- Creating a payment for a booking and updating booking status if payment is completed
+CREATE OR REPLACE PROCEDURE create_payment(
+    p_booking_id NUMERIC,
+    p_amount NUMERIC,
+    p_method payment_method,
+    p_status payment_status
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO payments (booking_id, amount, method, status, paid_at)
+    VALUES (
+        p_booking_id,
+        p_amount,
+        p_method,
+        p_status,
+        CASE
+            WHEN p_status = 'completed'
+            THEN CURRENT_TIMESTAMP
+            ELSE NULL
+        END
+    );
+    IF p_status = 'completed' THEN
+        UPDATE bookings
+        SET status = 'confirmed'
+        WHERE booking_id = p_booking_id
+          AND status = 'pending';
+    END IF;
+END;
+$$;
