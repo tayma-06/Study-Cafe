@@ -12,6 +12,8 @@ from models import (
     get_seats_by_zone,
     get_seat_by_id,
     create_booking,
+    get_booking_by_id, 
+    get_bookings_by_user,
 )
 
 from schemas import (
@@ -23,6 +25,8 @@ from schemas import (
     SeatResponse,
     BookingCreate,
     BookingResponse,
+    BookingDetail,
+    UserBookingResponse,
 )
 
 router = APIRouter()
@@ -216,3 +220,46 @@ def create_booking_route(booking: BookingCreate):
         "status": new_booking[3],
         "created_at": new_booking[4],
     }
+
+# Get a specific booking by its ID API endpoint
+@router.get("/bookings/{booking_id}", response_model=BookingDetail)
+def get_booking(booking_id: str):
+    booking = get_booking_by_id(booking_id)
+
+    if booking is None:
+        raise HTTPException(404, "Booking not found")
+
+    return {
+        "booking_id": booking[0],
+        "user_id": booking[1],
+        "seat_id": booking[2],
+        "time_slot": str(booking[3]),
+        "status": booking[4],
+        "checked_in_at": booking[5],
+        "checked_out_at": booking[6],
+        "created_at": booking[7],
+    }
+
+# Get all bookings for a specific user API endpoint
+@router.get("/users/{user_id}/bookings",
+            response_model=list[UserBookingResponse])
+def get_user_bookings(user_id: int):
+    bookings = get_bookings_by_user(user_id)
+
+    return [
+        {
+            "booking_id": b[0],
+            "user_id": b[1],
+            "seat_id": b[2],
+            "time_slot": str(b[3]),
+            "booking_status": b[4],
+            "checked_in_at": b[5],
+            "checked_out_at": b[6],
+            "created_at": b[7],
+            "seat_number": b[8],
+            "zone_name": b[9],
+            "payment_status": b[10],
+            "payment_amount": b[11],
+        }
+        for b in bookings
+    ]

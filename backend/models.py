@@ -162,3 +162,34 @@ def create_booking(
             )
 
             return cur.fetchone()
+
+# Retrieve a booking by its ID from the database.
+def get_booking_by_id(booking_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT booking_id, user_id, seat_id,
+                       time_slot, status,
+                       checked_in_at, checked_out_at,
+                       created_at
+                FROM bookings
+                WHERE booking_id = %s;
+            """, (booking_id,))
+            return cur.fetchone()
+
+# Retrieve all bookings for a specific user from the database.
+def get_bookings_by_user(user_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT booking_id, user_id, seat_id,
+                       time_slot, booking_status,
+                       checked_in_at, checked_out_at,
+                       created_at, seat_number,
+                       zone_name, payment_status,
+                       payment_amount
+                FROM user_bookings
+                WHERE user_id = %s
+                ORDER BY created_at DESC;
+            """, (user_id,))
+            return cur.fetchall()

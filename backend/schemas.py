@@ -63,3 +63,29 @@ class BookingResponse(BaseModel):
     seat_id: int
     status: str
     created_at: datetime
+
+# Response model for detail information of booking
+class BookingDetail(BaseModel):
+    booking_id: Decimal
+    user_id: int
+    seat_id: int
+    status: str
+    time_slot: str
+    checked_in_at: datetime | None
+    checked_out_at: datetime | None
+    created_at: datetime
+
+# Response model for user booking information, including booking ID, user ID, seat ID, seat number, zone name, time slot, booking status, payment status, payment amount, check-in timestamp, check-out timestamp, and creation timestamp.
+class UserBookingResponse(BaseModel):
+    booking_id: Decimal
+    user_id: int
+    seat_id: int
+    seat_number: str
+    zone_name: str
+    time_slot: str
+    booking_status: str
+    payment_status: str | None
+    payment_amount: Decimal | None
+    checked_in_at: datetime | None
+    checked_out_at: datetime | None
+    created_at: datetime
