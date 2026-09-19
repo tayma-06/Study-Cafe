@@ -1,53 +1,491 @@
 # Study Café
 
-A web-based study café management platform that enables customers to browse, book, and manage study seats while providing administrators with full control over operations, pricing, and services.
+A web-based study café management platform that allows customers to browse study zones, check seat availability, make time-based bookings, manage café services, and handle payments.
+
+## Overview
+
+Study Café is built around a **FastAPI + React + PostgreSQL** architecture. PostgreSQL handles a significant portion of the application's business logic through functions, procedures, triggers, constraints, and views.
+
+### Functionalities
+
+* User registration and login
+* Zone and seat browsing
+* Time-based seat availability checking
+* Seat booking with double-booking prevention
+* Booking cancellation
+* Check-in and check-out
+* Booking history
+* Café service management
+* Automatic price calculation
+* Payment management
+* Booking and payment status tracking
+* Role-based access control
+* Admin access to user and booking information
 
 ## Tech Stack
 
-- **Backend:** FastAPI
-- **Frontend:** React
-- **Database:** PostgreSQL
+* **Frontend:** React
+* **Backend:** FastAPI
+* **Database:** PostgreSQL
+* **Database Driver:** Psycopg
+* **Authentication:** JWT
+* **Password Hashing:** bcrypt
+* **API Documentation:** Swagger UI / OpenAPI
 
-## Customer Features
+## Project Structure
 
-### Account
-- Register and log in to your account
+```text
+Study-Cafe/
+│
+├── backend/
+│
+├── frontend/
+│
+├──  database/
+│   ├── schema.sql
+│   ├── functions.sql
+│   ├── procedures.sql
+│   ├── triggers.sql
+│   ├── views.sql
+│   └── seed.sql
+└── docs/
 
-### Browse & Discover
-- View available study slots by date and time
-- Explore seat and zone details
-- Review facility information and pricing
+```
+
+* **Backend** — FastAPI application
+* **Frontend** — React application
+* **Database** — PostgreSQL database scripts and database logic
+
+
+<details>
+<summary><strong>API Endpoints</strong></summary>
+
+### Authentication & Users
+
+| Method | Endpoint           | Description                        |
+| ------ | ------------------ | ---------------------------------- |
+| POST   | `/users`           | Register a new user                |
+| POST   | `/login`           | Log in and receive an access token |
+| GET    | `/users`           | Get all users — Admin              |
+| GET    | `/users/{user_id}` | Get user information — Self/Admin  |
+
+### Zones & Seats
+
+| Method | Endpoint                 | Description                         |
+| ------ | ------------------------ | ----------------------------------- |
+| GET    | `/zones`                 | Get all study zones                 |
+| GET    | `/zones/{zone_id}/seats` | Get seats in a zone                 |
+| GET    | `/seats`                 | Get all seats                       |
+| GET    | `/seats/{seat_id}`       | Get a specific seat                 |
+| GET    | `/availability`          | Get available seats for a date/time |
+
+### Bookings
+
+| Method | Endpoint                           | Description                       |
+| ------ | ---------------------------------- | --------------------------------- |
+| POST   | `/bookings`                        | Create a booking                  |
+| GET    | `/bookings/me`                     | Get current user's bookings       |
+| GET    | `/users/{user_id}/bookings`        | Get user's bookings — Self/Admin  |
+| GET    | `/bookings/{booking_id}`           | Get booking details — Owner/Admin |
+| POST   | `/bookings/{booking_id}/cancel`    | Cancel a booking                  |
+| POST   | `/bookings/{booking_id}/check-in`  | Check in                          |
+| POST   | `/bookings/{booking_id}/check-out` | Check out                         |
+
+### Services
+
+| Method | Endpoint                          | Description                 |
+| ------ | --------------------------------- | --------------------------- |
+| GET    | `/services`                       | Get available café services |
+| POST   | `/bookings/{booking_id}/services` | Add services to a booking   |
+
+### Payments
+
+| Method | Endpoint                 | Description             |
+| ------ | ------------------------ | ----------------------- |
+| POST   | `/payments`              | Create a payment        |
+| GET    | `/payments/{booking_id}` | Get payment information |
+
+### Pricing
+
+| Method | Endpoint                       | Description                 |
+| ------ | ------------------------------ | --------------------------- |
+| GET    | `/bookings/{booking_id}/price` | Get booking price breakdown |
+
+</details>
+
+<details>
+<summary><strong>Database Schema</strong></summary>
+
+### Tables
+
+#### `users`
+
+Stores customer and administrator accounts.
+
+* `user_id` — BIGINT, Primary Key
+* `name` — TEXT, NOT NULL
+* `email` — TEXT, UNIQUE, NOT NULL
+* `password` — TEXT, NOT NULL
+* `role` — `user_role`
+* `created_at` — TIMESTAMP
+
+#### `zones`
+
+Stores study café zones.
+
+* `zone_id` — SERIAL, Primary Key
+* `name` — TEXT
+* `description` — TEXT
+* `price_per_hour` — NUMERIC
+* `facilities` — TEXT[]
+
+#### `seats`
+
+Stores individual study seats.
+
+* `seat_id` — SERIAL, Primary Key
+* `zone_id` — INT, Foreign Key → `zones`
+* `seat_number` — TEXT
+* `status` — `seat_status`
+
+Constraint:
+
+```text
+UNIQUE(zone_id, seat_number)
+```
+
+#### `bookings`
+
+Stores time-based seat reservations.
+
+* `booking_id` — NUMERIC(12,4), Primary Key
+* `user_id` — BIGINT, Foreign Key → `users`
+* `seat_id` — INT, Foreign Key → `seats`
+* `time_slot` — TSTZRANGE
+* `status` — `booking_status`
+* `checked_in_at` — TIMESTAMPTZ
+* `checked_out_at` — TIMESTAMPTZ
+* `created_at` — TIMESTAMPTZ
+
+#### `services`
+
+Stores additional café services.
+
+* `service_id` — SERIAL, Primary Key
+* `name` — TEXT
+* `description` — TEXT
+* `price` — NUMERIC
+
+#### `booking_services`
+
+Connects bookings with services.
+
+* `booking_id` — NUMERIC(12,4), Foreign Key → `bookings`
+* `service_id` — INT, Foreign Key → `services`
+* `quantity` — INT
+* `unit_price` — NUMERIC
+
+Primary Key:
+
+```text
+(booking_id, service_id)
+```
+
+#### `payments`
+
+Stores booking payment information.
+
+* `payment_id` — BIGINT, Primary Key
+* `booking_id` — NUMERIC(12,4), Foreign Key → `bookings`, UNIQUE
+* `amount` — NUMERIC
+* `method` — `payment_method`
+* `status` — `payment_status`
+* `paid_at` — TIMESTAMPTZ
+* `created_at` — TIMESTAMPTZ
+
+### Relationships
+
+```text
+users
+  │
+  └──< bookings >── seats ──> zones
+          │
+          ├──< booking_services >── services
+          │
+          └── payments
+```
+
+</details>
+
+<details>
+<summary><strong>Custom Types & Domains</strong></summary>
+
+### `user_role`
+
+```text
+admin
+customer
+```
+
+### `booking_status`
+
+```text
+pending
+confirmed
+checked_in
+checked_out
+canceled
+```
+
+### `seat_status`
+
+```text
+available
+unavailable
+```
+
+### `payment_status`
+
+```text
+pending
+completed
+failed
+```
+
+### `payment_method`
+
+```text
+credit_card
+mobile_banking
+cash
+```
+
+### `price_breakdown`
+
+Composite type containing:
+
+```text
+base_price
+service_cost
+total_price
+```
+
+</details>
+
+<details>
+<summary><strong>Database Functions</strong></summary>
+
+| Function                    | Purpose                                                             |
+| --------------------------- | ------------------------------------------------------------------- |
+| `generate_user_id()`        | Generates a date-based user ID                                      |
+| `generate_booking_id()`     | Generates a date-based booking ID                                   |
+| `generate_payment_id()`     | Handles payment ID initialization                                   |
+| `calculate_booking_price()` | Calculates the base booking cost                                    |
+| `calculate_service_cost()`  | Calculates the total service cost                                   |
+| `calculate_total_price()`   | Calculates the complete price breakdown                             |
+| `update_booking_status()`   | Updates seat availability based on booking status                   |
+| `update_payment_status()`   | Updates booking status based on payment status                      |
+| `check_seat_availability()` | Checks whether a seat is available for a time slot                  |
+| `get_available_seats()`     | Returns available seats for a requested time slot and optional zone |
+
+</details>
+
+<details>
+<summary><strong>Stored Procedures</strong></summary>
+
+| Procedure                   | Purpose                                                     |
+| --------------------------- | ----------------------------------------------------------- |
+| `create_booking()`          | Creates a booking and adds selected services                |
+| `cancel_booking()`          | Cancels a booking                                           |
+| `check_in_booking()`        | Checks in a confirmed booking                               |
+| `check_out_booking()`       | Checks out a checked-in booking                             |
+| `add_services_to_booking()` | Adds services to an existing booking                        |
+| `create_payment()`          | Creates a payment and updates booking status when completed |
+
+</details>
+
+<details>
+<summary><strong>Database Views</strong></summary>
+
+| View              | Purpose                                                           |
+| ----------------- | ----------------------------------------------------------------- |
+| `user_bookings`   | Customer booking history with seat, zone, and payment information |
+| `available_seats` | Currently available seats with zone and pricing information       |
+| `admin_bookings`  | Detailed booking information for administrative use               |
+| `payment_summary` | Payment information with booking and customer details             |
+| `service_usage`   | Service usage, quantities, unit prices, and service totals        |
+
+</details>
+
+<details>
+<summary><strong>Database Triggers</strong></summary>
+
+| Trigger                     | Event                       | Function                  |
+| --------------------------- | --------------------------- | ------------------------- |
+| `trg_generate_user_id`      | BEFORE INSERT on `users`    | `generate_user_id()`      |
+| `trg_generate_booking_id`   | BEFORE INSERT on `bookings` | `generate_booking_id()`   |
+| `trg_booking_status_update` | AFTER UPDATE on `bookings`  | `update_booking_status()` |
+| `trg_payment_status_update` | AFTER UPDATE on `payments`  | `update_payment_status()` |
+
+</details>
+
+<details>
+<summary><strong>Business Rules & Data Integrity</strong></summary>
+
+### Authentication
+
+* Email addresses must be unique.
+* Passwords are stored using bcrypt hashing.
+* JWT authentication is used for protected API operations.
+* Users can access their own protected resources.
+* Admin users have additional management access.
 
 ### Booking
-- Book a seat for a specific date and time
-- Double-booking prevention to ensure seat availability
-- Cancel existing bookings
-- Check in when arriving at the café
-- Check out when leaving
 
-### Payments & Cost
-- Automatic booking cost calculation based on duration
-- View and manage current and past bookings
-- Make and track payments
+* A booking belongs to a specific user and seat.
+* Bookings use PostgreSQL `TSTZRANGE` for time slots.
+* A seat cannot have overlapping non-canceled bookings.
+* Only valid booking status transitions are allowed.
+* Confirmed bookings can be checked in.
+* Checked-in bookings can be checked out.
+* Bookings can be canceled.
 
-### Café Services
-- Add café services such as coffee, snacks, and printing
-- Include services in your booking
+### Services
 
-## Admin Features
+* Services can be attached to bookings.
+* Each booking-service combination is unique.
+* Service quantities and prices are stored with the booking service.
 
-### Seat & Slot Management
-- Add, update, or remove seats and zones
-- Create and manage study slots
-- Block seats for maintenance
+### Payments
 
-### Pricing & Availability
-- Set and update seat/zone prices
-- Manage seat and slot availability schedules
+* A booking can have at most one payment.
+* Payment methods are restricted to the defined `payment_method` domain.
+* Payment statuses are restricted to the defined `payment_status` domain.
+* A completed payment can confirm a pending booking.
 
-### Service Management
-- Add, update, or remove café services (coffee, snacks, printing, etc.)
+</details>
 
-### Booking & Payment Oversight
-- View and manage all customer bookings
-- Monitor and manage payments
+<details>
+<summary><strong>API Documentation</strong></summary>
+
+When the FastAPI backend is running, interactive API documentation is available through:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+OpenAPI specification:
+
+```text
+http://127.0.0.1:8000/openapi.json
+```
+
+</details>
+
+<details>
+<summary><strong>Backend Setup</strong></summary>
+
+### 1. Create a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+### 2. Activate the virtual environment
+
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install fastapi uvicorn psycopg[binary] python-dotenv bcrypt PyJWT email-validator
+```
+
+### 4. Configure environment variables
+
+Create a `.env` file in the backend/project environment:
+
+```env
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME=study_cafe
+DB_USER=your_database_user
+DB_PASSWORD=your_database_password
+```
+
+### 5. Start the FastAPI server
+
+From the `backend` directory:
+
+```bash
+uvicorn main:app --reload
+```
+
+The API will be available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+</details>
+
+<details>
+<summary><strong>Database Setup</strong></summary>
+
+Create the PostgreSQL database and execute the SQL files in the appropriate order:
+
+```text
+schema.sql
+functions.sql
+triggers.sql
+procedures.sql
+views.sql
+seed.sql
+```
+
+The database uses PostgreSQL features including:
+
+* `TSTZRANGE`
+* Range operators
+* GiST indexing
+* Exclusion constraints
+* Functions
+* Stored procedures
+* Triggers
+* Views
+* Custom domains
+* Composite types
+
+</details>
+
+## Architecture
+
+```text
+┌─────────────────────┐
+│      React UI       │
+└──────────┬──────────┘
+           │ HTTP / JSON
+           ▼
+┌─────────────────────┐
+│      FastAPI        │
+│                     │
+│ Routes / Auth       │
+│ Schemas / Models    │
+└──────────┬──────────┘
+           │ Psycopg
+           ▼
+┌────────────────────────────┐
+│        PostgreSQL          │
+│                            │
+│ Tables                     │
+│ Functions                  │
+│ Procedures                 │
+│ Triggers                   │
+│ Views                      │
+│ Constraints                │
+└────────────────────────────┘
+```
