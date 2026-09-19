@@ -439,7 +439,10 @@ This is a core database requirement.
 - [x] Create PostgreSQL exclusion constraint
 - [x] Compare `seat_id` using equality
 - [x] Compare `time_slot` using overlap
-- [x] Exclude canceled bookings from the conflict rule if supported by the design
+- [ ] Exclude canceled bookings from the conflict rule — **not yet true**: the
+      exclusion constraint in `schema.sql` has no `WHERE status <> 'canceled'`,
+      so a canceled booking still blocks re-booking the same seat/time. Needs
+      a partial exclusion constraint (`WHERE (status <> 'canceled')`).
 
 Conceptually:
 
@@ -456,7 +459,7 @@ booking rejected
 - [x] Same seat + overlapping time → reject
 - [x] Same seat + non-overlapping time → allow
 - [x] Different seats + overlapping time → allow
-- [x] Canceled booking + same time → allow
+- [ ] Canceled booking + same time → allow (blocked by the constraint gap noted in 6.1)
 
 ## 6.3 Concurrency
 
@@ -609,77 +612,66 @@ Create useful views for repeated queries.
 - [x] Show seat status
 - [x] Show pricing information
 
-## 10.2 Customer Booking View
+## 10.2 Customer Booking View (`user_bookings`)
 
-- [ ] Show customer
-- [ ] Show seat
-- [ ] Show zone
-- [ ] Show time slot
-- [ ] Show booking status
-- [ ] Show cost
+- [x] Show customer
+- [x] Show seat
+- [x] Show zone
+- [x] Show time slot
+- [x] Show booking status
+- [x] Show cost
 
-## 10.3 Admin Booking View
+## 10.3 Admin Booking View (`admin_bookings`)
 
-- [ ] Show booking
-- [ ] Customer information
-- [ ] Seat
-- [ ] Zone
-- [ ] Time
-- [ ] Status
-- [ ] Payment status
+- [x] Show booking
+- [x] Customer information
+- [x] Seat
+- [x] Zone
+- [x] Time
+- [x] Status
+- [x] Payment status
 
-## 10.4 Payment Summary View
+## 10.4 Payment Summary View (`payment_summary`)
 
-- [ ] Show booking
-- [ ] Amount
-- [ ] Method
-- [ ] Status
-- [ ] Payment date
+- [x] Show booking
+- [x] Amount
+- [x] Method
+- [x] Status
+- [x] Payment date
 
-## 10.5 Service Usage View
+## 10.5 Service Usage View (`service_usage`)
 
-- [ ] Show services
-- [ ] Quantity used
-- [ ] Revenue/subtotal where appropriate
+- [x] Show services
+- [x] Quantity used
+- [x] Revenue/subtotal where appropriate
 
 ---
 
 # 11. Advanced PostgreSQL Requirements
 
-## 11.1 Recursive CTE
+Recursive CTEs and cursors do not map to any real requirement in this
+project (there is no hierarchical data and no row-by-row administrative
+report to iterate over) — adding either just to check a box would be
+artificial, so both are dropped from scope. Keep this section limited to
+things the project actually needs.
 
-Use a meaningful recursive CTE rather than adding one artificially.
+## 11.1 Transactions
 
-Possible use:
-
-- [ ] Generate/represent hierarchical zone information if applicable
-- [ ] Generate a time sequence for availability/reporting if applicable
-- [ ] Document why the recursive CTE is useful
-
-## 11.2 Cursor
-
-Use a cursor for an appropriate administrative/reporting operation.
-
-Possible use:
-
-- [ ] Iterate through booking records
-- [ ] Generate an administrative report
-- [ ] Demonstrate cursor-based processing
-
-## 11.3 Transactions
-
-- [ ] Use transactions for booking creation
+- [ ] Wrap booking creation in an explicit transaction boundary at the
+      call site (procedures are atomic per-call, but the
+      validate → book → add services → charge flow spanning multiple
+      calls from FastAPI is not currently one transaction)
 - [ ] Roll back failed booking operations
 - [ ] Roll back service insertion when booking creation fails
 - [ ] Roll back payment creation when the transaction fails
 
-## 11.4 Exception Handling
+## 11.2 Exception Handling
 
-- [ ] Handle invalid booking requests
-- [ ] Handle unavailable seats
-- [ ] Handle duplicate/conflicting bookings
-- [ ] Handle invalid service selection
-- [ ] Handle database exceptions safely
+- [x] Handle unavailable seats (`check_seat_availability` inside `create_booking`)
+- [ ] Handle invalid booking requests (missing/invalid user or seat id)
+- [ ] Handle duplicate/conflicting bookings distinctly (currently surfaces as a generic exclusion-constraint error)
+- [ ] Handle invalid service selection (unknown service id)
+- [ ] Handle database exceptions safely (avoid leaking raw Postgres error text to the client)
 
 ---
 
@@ -697,7 +689,9 @@ backend/main.py
 - [x] Add health endpoint
 - [x] Configure PostgreSQL connection
 - [x] Configure environment variables
-- [x] Configure CORS
+- [ ] Configure CORS — **not yet done**: no `CORSMiddleware` in `main.py`.
+      The frontend on a different origin/port will be blocked by the browser
+      until this is added.
 - [ ] Add exception handling
 
 ---
@@ -866,7 +860,7 @@ Prevent:
 
 - [x] `POST /payments`
 - [x] `GET /payments/{id}`
-- [] `GET /payments/me`
+- [ ] `GET /payments/me`
 - [x] Validate booking
 - [x] Validate amount
 - [x] Record payment
@@ -1361,13 +1355,11 @@ ROLLBACK
 ## Phase 2 — Database Logic
 
 - [x] Functions
-- [ ] Procedures
-- [ ] Triggers
-- [ ] Views
-- [ ] Recursive CTE
-- [ ] Cursor
-- [ ] Transactions
-- [ ] Exception handling
+- [x] Procedures
+- [x] Triggers
+- [x] Views
+- [ ] Transactions (see §11.1 — explicit multi-step transaction still needed)
+- [ ] Exception handling (see §11.2)
 - [ ] Database testing
 
 ## Phase 3 — Backend
@@ -1375,7 +1367,7 @@ ROLLBACK
 - [x] FastAPI setup
 - [x] PostgreSQL connection
 - [x] Environment configuration
-- [x] CORS
+- [ ] CORS (not implemented yet — see §12.1)
 - [ ] Authentication
 - [x] Zone API
 - [x] Seat API
