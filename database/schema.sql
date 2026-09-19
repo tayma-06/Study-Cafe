@@ -79,7 +79,7 @@ CREATE TABLE payments(
 ALTER TABLE bookings ADD CONSTRAINT no_overlapping_bookings EXCLUDE USING GIST (
     seat_id WITH =,
     time_slot WITH &&
-);
+) WHERE (status <> 'canceled');
 
 -- INDEX DEFINITIONS
 CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
