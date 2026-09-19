@@ -18,6 +18,10 @@ from models import (
     add_services_to_booking,
     create_payment,
     get_payment_by_booking_id,
+    calculate_total_price,
+    cancel_booking,
+    check_in_booking,
+    check_out_booking
 )
 
 from schemas import (
@@ -35,6 +39,7 @@ from schemas import (
     BookingServicesCreate,
     PaymentCreate,
     PaymentResponse,
+    PriceBreakdownResponse,
 )
 
 router = APIRouter()
@@ -43,7 +48,6 @@ router = APIRouter()
 @router.get("/users", response_model=list[UserResponse])
 def get_users():
     users = get_all_users()
-
     return [
         {
             "user_id": user[0],
@@ -59,13 +63,11 @@ def get_users():
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: int):
     user = get_user_by_id(user_id)
-
     if user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found"
         )
-
     return {
         "user_id": user[0],
         "name": user[1],
@@ -82,20 +84,17 @@ def create_user_route(user: UserCreate):
             user.name,
             user.email,
             user.password
-)
-
+   )
     except Exception as e:
         if "users_email_key" in str(e):
             raise HTTPException(
                 status_code=409,
                 detail="Email already exists"
             )
-
         raise HTTPException(
             status_code=500,
             detail="Could not create user"
         )
-
     return {
         "user_id": new_user[0],
         "name": new_user[1],
@@ -108,24 +107,20 @@ def create_user_route(user: UserCreate):
 @router.post("/login", response_model=LoginResponse)
 def login(credentials: LoginRequest):
     user = get_user_by_email(credentials.email)
-
     if user is None:
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
         )
-
     password_ok = bcrypt.checkpw(
         credentials.password.encode("utf-8"),
         user[3].encode("utf-8")
     )
-
     if not password_ok:
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
         )
-
     return {
         "user_id": user[0],
         "name": user[1],
@@ -137,7 +132,6 @@ def login(credentials: LoginRequest):
 @router.get("/zones", response_model=list[ZoneResponse])
 def get_zones():
     zones = get_all_zones()
-
     return [
         {
             "zone_id": zone[0],
@@ -153,7 +147,6 @@ def get_zones():
 @router.get("/seats", response_model=list[SeatResponse])
 def get_seats():
     seats = get_all_seats()
-
     return [
         {
             "seat_id": seat[0],
@@ -169,7 +162,6 @@ def get_seats():
             response_model=list[SeatResponse])
 def get_zone_seats(zone_id: int):
     seats = get_seats_by_zone(zone_id)
-
     return [
         {
             "seat_id": seat[0],
@@ -184,13 +176,11 @@ def get_zone_seats(zone_id: int):
 @router.get("/seats/{seat_id}", response_model=SeatResponse)
 def get_seat(seat_id: int):
     seat = get_seat_by_id(seat_id)
-
     if seat is None:
         raise HTTPException(
             status_code=404,
             detail="Seat not found"
         )
-
     return {
         "seat_id": seat[0],
         "zone_id": seat[1],
@@ -214,13 +204,11 @@ def create_booking_route(booking: BookingCreate):
             booking.services,
             booking.quantities,
         )
-
     except Exception as e:
         raise HTTPException(
             status_code=400,
             detail=str(e),
         )
-
     return {
         "booking_id": new_booking[0],
         "user_id": new_booking[1],
@@ -233,10 +221,8 @@ def create_booking_route(booking: BookingCreate):
 @router.get("/bookings/{booking_id}", response_model=BookingDetail)
 def get_booking(booking_id: str):
     booking = get_booking_by_id(booking_id)
-
     if booking is None:
         raise HTTPException(404, "Booking not found")
-
     return {
         "booking_id": booking[0],
         "user_id": booking[1],
@@ -253,7 +239,6 @@ def get_booking(booking_id: str):
             response_model=list[UserBookingResponse])
 def get_user_bookings(user_id: int):
     bookings = get_bookings_by_user(user_id)
-
     return [
         {
             "booking_id": b[0],
@@ -276,7 +261,6 @@ def get_user_bookings(user_id: int):
 @router.get("/services", response_model=list[ServiceResponse])
 def get_services():
     services = get_all_services()
-
     return [
         {
             "service_id": service[0],
@@ -298,19 +282,16 @@ def add_booking_services(
             status_code=400,
             detail="Services and quantities must have the same length."
         )
-
     try:
         add_services_to_booking(
             booking_id,
             data.services,
             data.quantities
         )
-
         return {
             "message": "Services added to booking successfully.",
             "booking_id": booking_id
         }
-
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -330,7 +311,6 @@ def get_payment(booking_id: float):
             status_code=404,
             detail="Payment not found for this booking."
         )
-
     return {
         "payment_id": payment[0],
         "booking_id": payment[1],
@@ -354,7 +334,6 @@ def create_payment_route(data: PaymentCreate):
             data.method,
             data.status
         )
-
         return {
             "payment_id": payment[0],
             "booking_id": payment[1],
@@ -364,9 +343,78 @@ def create_payment_route(data: PaymentCreate):
             "paid_at": payment[5],
             "created_at": payment[6],
         }
-
     except Exception as e:
         raise HTTPException(
             status_code=400,
             detail=str(e)
         )
+
+# Get the price breakdown for a specific booking API endpoint
+@router.get(
+    "/bookings/{booking_id}/price",
+    response_model=PriceBreakdownResponse
+)
+def get_booking_price(booking_id: float):
+    try:
+        result = calculate_total_price(booking_id)
+
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Booking not found."
+            )
+
+        return {
+            "booking_id": booking_id,
+            "base_price": result[0],
+            "service_cost": result[1],
+            "total_price": result[2],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+# Cancel a booking API endpoint
+@router.post("/bookings/{booking_id}/cancel")
+def cancel_booking_route(booking_id: float):
+    try:
+        cancel_booking(booking_id)
+        return {
+            "message": "Booking canceled successfully.",
+            "booking_id": booking_id
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+# Check-in a booking API endpoint
+@router.post("/bookings/{booking_id}/check-in")
+def check_in_booking_route(booking_id: float):
+    try:
+        check_in_booking(booking_id)
+        return {
+            "message": "Booking checked in successfully.",
+            "booking_id": booking_id
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+@router.post("/bookings/{booking_id}/check-out")
+def check_out_booking_route(booking_id: float):
+    try:
+        check_out_booking(booking_id)
+        return {
+            "message": "Booking checked out successfully.",
+            "booking_id": booking_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

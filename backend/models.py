@@ -238,3 +238,76 @@ def create_payment(booking_id, amount, method, status):
                 (booking_id, amount, method, status)
             )
         conn.commit()
+
+# Calculate the total price for a specific booking by calling the stored procedure calculate_total_price with the provided booking ID. The function returns the result of the calculation.
+def calculate_total_price(booking_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT *
+                FROM calculate_total_price(%s::numeric);
+                """,
+                (booking_id,)
+            )
+            result = cur.fetchone()
+
+    return result
+
+# Retrieve payment information for a specific booking by its ID from the database.
+def get_payment_by_booking_id(booking_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    payment_id,
+                    booking_id,
+                    amount,
+                    method,
+                    status,
+                    paid_at,
+                    created_at
+                FROM payments
+                WHERE booking_id = %s;
+                """,
+                (booking_id,)
+            )
+            return cur.fetchone()
+
+# Cancel a booking by calling the stored procedure cancel_booking with the provided booking ID. 
+# The function commits the changes to the database.
+def cancel_booking(booking_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CALL cancel_booking(%s::numeric);
+                """,
+                (booking_id,)
+            )
+        conn.commit()
+
+# Check in a booking by calling the stored procedure check_in_booking with the provided booking ID.
+def check_in_booking(booking_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CALL check_in_booking(%s::numeric);
+                """,
+                (booking_id,)
+            )
+        conn.commit()
+
+# Check out a booking by calling the stored procedure check_out_booking with the provided booking ID.
+def check_out_booking(booking_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CALL check_out_booking(%s::numeric);
+                """,
+                (booking_id,)
+            )
+        conn.commit()

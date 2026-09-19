@@ -121,3 +121,10 @@ class PaymentResponse(BaseModel):
     status: str
     paid_at: datetime | None
     created_at: datetime
+
+# Response model for price breakdown information, including booking ID, base price, service cost, and total price.
+class PriceBreakdownResponse(BaseModel):
+    booking_id: Decimal
+    base_price: Decimal
+    service_cost: Decimal
+    total_price: Decimal
