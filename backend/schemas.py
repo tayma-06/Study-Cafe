@@ -1,6 +1,6 @@
 from datetime import datetime
-
 from pydantic import BaseModel, EmailStr
+from decimal import Decimal
 
 # Response model for user creation, including name, email, and password fields.
 class UserCreate(BaseModel):
@@ -27,3 +27,18 @@ class LoginResponse(BaseModel):
     name: str
     email: EmailStr
     role: str
+
+# Response model for zone information, including zone ID, name, description, price per hour, and a list of facilities.
+class ZoneResponse(BaseModel):
+    zone_id: int
+    name: str
+    description: str
+    price_per_hour: Decimal
+    facilities: list[str]
+
+# Response model for seat information, including seat ID, zone ID, seat number, and status fields.
+class SeatResponse(BaseModel):
+    seat_id: int
+    zone_id: int
+    seat_number: str
+    status: str

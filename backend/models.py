@@ -64,3 +64,58 @@ def get_user_by_email(email):
             )
 
             return cur.fetchone()
+
+# Retrieve all zones from the database.
+def get_all_zones():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT zone_id, name, description,
+                       price_per_hour, facilities
+                FROM zones
+                ORDER BY zone_id;
+            """)
+            return cur.fetchall()
+
+# Retrieve all seats from the database.
+def get_all_seats():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT seat_id, zone_id,
+                       seat_number, status
+                FROM seats
+                ORDER BY seat_id;
+            """)
+            return cur.fetchall()
+
+# Retrieve all seats for a specific zone from the database.
+def get_seats_by_zone(zone_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT seat_id, zone_id,
+                       seat_number, status
+                FROM seats
+                WHERE zone_id = %s
+                ORDER BY seat_number;
+                """,
+                (zone_id,)
+            )
+            return cur.fetchall()
+
+# Retrieve a seat by its ID from the database.
+def get_seat_by_id(seat_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT seat_id, zone_id,
+                       seat_number, status
+                FROM seats
+                WHERE seat_id = %s;
+                """,
+                (seat_id,)
+            )
+            return cur.fetchone()
