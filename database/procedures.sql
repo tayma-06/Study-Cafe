@@ -57,7 +57,21 @@ CREATE OR REPLACE PROCEDURE check_in_booking(
 )
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    current_status booking_status;
 BEGIN
+    SELECT status
+    INTO current_status
+    FROM bookings
+    WHERE booking_id = p_booking_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Booking not found';
+    END IF;
+    IF current_status <> 'confirmed' THEN
+        RAISE EXCEPTION
+            'Cannot check in booking with status: %',
+            current_status;
+    END IF;
     UPDATE bookings
     SET
         status = 'checked_in',
@@ -73,7 +87,21 @@ CREATE OR REPLACE PROCEDURE check_out_booking(
 )
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    current_status booking_status;
 BEGIN
+    SELECT status
+    INTO current_status
+    FROM bookings
+    WHERE booking_id = p_booking_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Booking not found';
+    END IF;
+    IF current_status <> 'checked_in' THEN
+        RAISE EXCEPTION
+            'Cannot check out booking with status: %',
+            current_status;
+    END IF;
     UPDATE bookings
     SET
         status = 'checked_out',
