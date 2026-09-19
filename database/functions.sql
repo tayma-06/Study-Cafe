@@ -81,16 +81,18 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Calculates the total price for a booking, including the base price and service costs
-CREATE OR REPLACE FUNCTION calculate_total_price(p_booking_id NUMERIC(12,4))
-RETURNS price_breakdown AS $$
+CREATE OR REPLACE FUNCTION calculate_total_price(p_booking_id NUMERIC)
+RETURNS price_breakdown
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    base_price NUMERIC := calculate_booking_price(p_booking_id);
-    service_cost NUMERIC := calculate_service_cost(p_booking_id);
-    total_price NUMERIC := base_price + service_cost;
+    base_price NUMERIC(10,2) := calculate_booking_price(p_booking_id);
+    service_cost NUMERIC(10,2) := calculate_service_cost(p_booking_id);
+    total_price NUMERIC(10,2) := base_price + service_cost;
 BEGIN
     RETURN (base_price, service_cost, total_price);
 END;
-$$ LANGUAGE plpgsql;  
+$$;
 
 -- Updates seat status when a booking status changes
 CREATE OR REPLACE FUNCTION update_booking_status()
