@@ -80,3 +80,8 @@ ALTER TABLE bookings ADD CONSTRAINT no_overlapping_bookings EXCLUDE USING GIST (
     seat_id WITH =,
     time_slot WITH &&
 );
+
+-- INDEX DEFINITIONS
+CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_seat_id ON bookings(seat_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
