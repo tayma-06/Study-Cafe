@@ -9,35 +9,35 @@ Complete implementation checklist for the Study Café Slot Booking & Management 
 ## 1.1 Objective
 
 - [x] Build a web-based study café booking and management system
-- [ ] Allow customers to browse zones and seats
-- [ ] Allow customers to check seat availability
-- [ ] Allow customers to book seats for a selected time period
-- [ ] Allow customers to add café services to bookings
-- [ ] Calculate booking costs automatically
-- [ ] Allow customers to view and manage bookings
-- [ ] Allow customers to check in and check out
-- [ ] Record and track payments
+- [x] Allow customers to browse zones and seats
+- [x] Allow customers to check seat availability
+- [x] Allow customers to book seats for a selected time period
+- [x] Allow customers to add café services to bookings
+- [x] Calculate booking costs automatically
+- [x] Allow customers to view and manage bookings
+- [x] Allow customers to check in and check out
+- [x] Record and track payments
 - [ ] Allow administrators to manage café resources
-- [ ] Enforce booking integrity through PostgreSQL
+- [x] Enforce booking integrity through PostgreSQL
 
 ## 1.2 User Roles
 
 ### Customer
 
-- [ ] Register
-- [ ] Login
-- [ ] View zones
-- [ ] View seats
-- [ ] Check availability
+- [x] Register
+- [x] Login
+- [x] View zones
+- [x] View seats
+- [x] Check availability
 - [ ] Select a seat
-- [ ] Create a booking
-- [ ] Add services
-- [ ] View booking cost
-- [ ] Record payment
-- [ ] Cancel booking
-- [ ] Check in
-- [ ] Check out
-- [ ] View booking history
+- [x] Create a booking
+- [x] Add services
+- [x] View booking cost
+- [x] Record payment
+- [x] Cancel booking
+- [x] Check in
+- [x] Check out
+- [x] View booking history
 
 ### Admin
 
@@ -90,15 +90,15 @@ PostgreSQL
 
 ## 2.3 Responsibility
 
-- [ ] React handles presentation and user interaction
-- [ ] React sends requests to FastAPI
-- [ ] FastAPI validates requests
+- [x] React handles presentation and user interaction
+- [x] React sends requests to FastAPI
+- [x] FastAPI validates requests
 - [ ] FastAPI handles authentication and authorization
-- [ ] FastAPI communicates with PostgreSQL
-- [ ] PostgreSQL enforces data integrity
-- [ ] PostgreSQL prevents overlapping bookings
-- [ ] PostgreSQL performs authoritative booking calculations
-- [ ] Frontend must not be trusted for prices or booking status
+- [x] FastAPI communicates with PostgreSQL
+- [x] PostgreSQL enforces data integrity
+- [x] PostgreSQL prevents overlapping bookings
+- [x] PostgreSQL performs authoritative booking calculations
+- [x] Frontend must not be trusted for prices or booking status
 
 ---
 
@@ -118,11 +118,11 @@ The database contains exactly seven main tables.
 
 Do not create separate tables for:
 
-- [ ] maintenance
-- [ ] slots
-- [ ] facilities
-- [ ] pricing
-- [ ] booking history
+- [x] maintenance
+- [x] slots
+- [x] facilities
+- [x] pricing
+- [x] booking history
 
 These concepts are handled using existing tables, fields, PostgreSQL types, constraints, functions, or views.
 
@@ -134,14 +134,14 @@ These concepts are handled using existing tables, fields, PostgreSQL types, cons
 
 Purpose: store customer and administrator accounts.
 
-- [ ] `user_id` primary key
-- [ ] `name`
-- [ ] `email`
-- [ ] `password_hash`
-- [ ] `role`
-- [ ] `created_at`
-- [ ] Unique email constraint
-- [ ] Valid role constraint/domain
+- [x] `user_id` primary key
+- [x] `name`
+- [x] `email`
+- [x] `password_hash`
+- [x] `role`
+- [x] `created_at`
+- [x] Unique email constraint
+- [x] Valid role constraint/domain
 
 Relationship:
 
@@ -163,17 +163,17 @@ Examples:
 
 Fields:
 
-- [ ] `zone_id` primary key
-- [ ] `name`
-- [ ] `description`
-- [ ] `facilities`
-- [ ] `price`
-- [ ] `status` if required
-- [ ] Unique zone name
+- [x] `zone_id` primary key
+- [x] `name`
+- [x] `description`
+- [x] `facilities`
+- [x] `price`
+- [x] `status` if required
+- [x] Unique zone name
 
 PostgreSQL feature:
 
-- [ ] Store facilities using `TEXT[]`
+- [x] Store facilities using `TEXT[]`
 
 Relationship:
 
@@ -189,17 +189,17 @@ Purpose: represent individual study seats.
 
 Fields:
 
-- [ ] `seat_id` primary key
-- [ ] `zone_id` foreign key
-- [ ] `seat_number`
-- [ ] `status`
+- [x] `seat_id` primary key
+- [x] `zone_id` foreign key
+- [x] `seat_number`
+- [x] `status`
 
 Rules:
 
-- [ ] Every seat belongs to one zone
-- [ ] Seat number is unique within a zone
-- [ ] Invalid zone references are rejected
-- [ ] Unavailable seats cannot be booked
+- [x] Every seat belongs to one zone
+- [x] Seat number is unique within a zone
+- [x] Invalid zone references are rejected
+- [x] Unavailable seats cannot be booked
 
 Relationship:
 
@@ -215,16 +215,16 @@ Purpose: store customer seat reservations.
 
 Fields:
 
-- [ ] `booking_id` primary key
-- [ ] `user_id` foreign key
-- [ ] `seat_id` foreign key
-- [ ] `time_slot`
-- [ ] `status`
-- [ ] `booking_cost`
-- [ ] `created_at`
-- [ ] `check_in_at`
-- [ ] `check_out_at`
-- [ ] Cancellation information if required
+- [x] `booking_id` primary key
+- [x] `user_id` foreign key
+- [x] `seat_id` foreign key
+- [x] `time_slot`
+- [x] `status`
+- [x] `booking_cost`
+- [x] `created_at`
+- [x] `check_in_at`
+- [x] `check_out_at`
+- [x] Cancellation information if required
 
 Use:
 
@@ -242,10 +242,10 @@ Example:
 
 Rules:
 
-- [ ] Start must be before end
-- [ ] Booking duration must be valid
-- [ ] Canceled bookings do not block availability
-- [ ] Same seat cannot have overlapping active bookings
+- [x] Start must be before end
+- [x] Booking duration must be valid
+- [x] Canceled bookings do not block availability
+- [x] Same seat cannot have overlapping active bookings
 
 Relationship:
 
@@ -268,17 +268,17 @@ Examples:
 
 Fields:
 
-- [ ] `service_id` primary key
-- [ ] `name`
-- [ ] `description`
-- [ ] `price`
-- [ ] `status`
+- [x] `service_id` primary key
+- [x] `name`
+- [x] `description`
+- [x] `price`
+- [x] `status`
 
 Rules:
 
-- [ ] Service name should be unique
-- [ ] Price must be non-negative
-- [ ] Disabled services cannot be newly selected
+- [x] Service name should be unique
+- [x] Price must be non-negative
+- [x] Disabled services cannot be newly selected
 
 ---
 
@@ -288,16 +288,16 @@ Purpose: many-to-many relationship between bookings and services.
 
 Fields:
 
-- [ ] `booking_id` foreign key
-- [ ] `service_id` foreign key
-- [ ] `quantity`
-- [ ] `service_price`
+- [x] `booking_id` foreign key
+- [x] `service_id` foreign key
+- [x] `quantity`
+- [x] `service_price`
 
 Rules:
 
-- [ ] Quantity must be positive
-- [ ] Store service price at booking time
-- [ ] Calculate service subtotal
+- [x] Quantity must be positive
+- [x] Store service price at booking time
+- [x] Calculate service subtotal
 
 Relationship:
 
@@ -319,20 +319,20 @@ Purpose: record payments associated with bookings.
 
 Fields:
 
-- [ ] `payment_id` primary key
-- [ ] `booking_id` foreign key
-- [ ] `amount`
-- [ ] `payment_method`
-- [ ] `payment_status`
-- [ ] `transaction_reference`
-- [ ] `paid_at`
+- [x] `payment_id` primary key
+- [x] `booking_id` foreign key
+- [x] `amount`
+- [x] `payment_method`
+- [x] `payment_status`
+- [x] `transaction_reference`
+- [x] `paid_at`
 
 Rules:
 
-- [ ] Payment amount must be valid
-- [ ] Payment must belong to a valid booking
-- [ ] Customer cannot access another customer's payment
-- [ ] Payment status must use valid values
+- [x] Payment amount must be valid
+- [x] Payment must belong to a valid booking
+- [x] Customer cannot access another customer's payment
+- [x] Payment status must use valid values
 
 ---
 
@@ -342,11 +342,11 @@ Rules:
 
 Create domains for controlled values.
 
-- [ ] `user_role`
-- [ ] `booking_status`
-- [ ] `seat_status`
-- [ ] `payment_status`
-- [ ] `payment_method`
+- [x] `user_role`
+- [x] `booking_status`
+- [x] `seat_status`
+- [x] `payment_status`
+- [x] `payment_method`
 
 Example:
 
@@ -361,11 +361,11 @@ CHECK (VALUE IN ('admin', 'customer'));
 
 Create a composite type for booking price information.
 
-- [ ] Define `price_breakdown`
-- [ ] Include base booking cost
-- [ ] Include service cost
-- [ ] Include final total
-- [ ] Use it where appropriate in database functions
+- [x] Define `price_breakdown`
+- [x] Include base booking cost
+- [x] Include service cost
+- [x] Include final total
+- [x] Use it where appropriate in database functions
 
 Example structure:
 
@@ -388,10 +388,10 @@ tstzrange
 
 for booking periods.
 
-- [ ] Use half-open ranges
-- [ ] Validate start < end
-- [ ] Use range operators for availability checking
-- [ ] Use range overlap operator `&&`
+- [x] Use half-open ranges
+- [x] Validate start < end
+- [x] Use range operators for availability checking
+- [x] Use range overlap operator `&&`
 
 ---
 
@@ -411,9 +411,9 @@ Example:
 {"WiFi", "Power Outlet", "AC", "Lamp"}
 ```
 
-- [ ] Insert facility arrays
-- [ ] Query facilities
-- [ ] Update facilities
+- [x] Insert facility arrays
+- [x] Query facilities
+- [x] Update facilities
 
 ---
 
@@ -421,12 +421,12 @@ Example:
 
 Create useful indexes.
 
-- [ ] Unique index on `users.email`
-- [ ] Index on `bookings.user_id`
-- [ ] Index on `bookings.seat_id`
-- [ ] Index on `bookings.status`
-- [ ] Index on `payments.booking_id`
-- [ ] GiST index for booking ranges where appropriate
+- [x] Unique index on `users.email`
+- [x] Index on `bookings.user_id`
+- [x] Index on `bookings.seat_id`
+- [x] Index on `bookings.status`
+- [x] Index on `payments.booking_id`
+- [x] GiST index for booking ranges where appropriate
 
 ---
 
@@ -436,10 +436,10 @@ This is a core database requirement.
 
 ## 6.1 Exclusion Constraint
 
-- [ ] Create PostgreSQL exclusion constraint
-- [ ] Compare `seat_id` using equality
-- [ ] Compare `time_slot` using overlap
-- [ ] Exclude canceled bookings from the conflict rule if supported by the design
+- [x] Create PostgreSQL exclusion constraint
+- [x] Compare `seat_id` using equality
+- [x] Compare `time_slot` using overlap
+- [x] Exclude canceled bookings from the conflict rule if supported by the design
 
 Conceptually:
 
@@ -453,16 +453,16 @@ booking rejected
 
 ## 6.2 Allowed Cases
 
-- [ ] Same seat + overlapping time → reject
-- [ ] Same seat + non-overlapping time → allow
-- [ ] Different seats + overlapping time → allow
-- [ ] Canceled booking + same time → allow
+- [x] Same seat + overlapping time → reject
+- [x] Same seat + non-overlapping time → allow
+- [x] Different seats + overlapping time → allow
+- [x] Canceled booking + same time → allow
 
 ## 6.3 Concurrency
 
-- [ ] Test two users booking the same seat simultaneously
-- [ ] Ensure PostgreSQL remains the final authority
-- [ ] Handle exclusion-constraint failure in FastAPI
+- [x] Test two users booking the same seat simultaneously
+- [x] Ensure PostgreSQL remains the final authority
+- [x] Handle exclusion-constraint failure in FastAPI
 
 ---
 
@@ -476,39 +476,39 @@ database/functions.sql
 
 ## 7.1 Availability
 
-- [ ] Accept seat and requested time range
-- [ ] Check existing bookings
-- [ ] Ignore canceled bookings
-- [ ] Return availability
+- [x] Accept seat and requested time range
+- [x] Check existing bookings
+- [x] Ignore canceled bookings
+- [x] Return availability
 
 ## 7.2 Booking Cost
 
-- [ ] Accept seat/zone and duration
-- [ ] Retrieve applicable price
-- [ ] Calculate base booking cost
-- [ ] Return cost
+- [x] Accept seat/zone and duration
+- [x] Retrieve applicable price
+- [x] Calculate base booking cost
+- [x] Return cost
 
 ## 7.3 Service Cost
 
-- [ ] Accept service and quantity
-- [ ] Retrieve service price
-- [ ] Calculate subtotal
-- [ ] Return subtotal
+- [x] Accept service and quantity
+- [x] Retrieve service price
+- [x] Calculate subtotal
+- [x] Return subtotal
 
 ## 7.4 Booking Total
 
-- [ ] Calculate base booking cost
-- [ ] Calculate service total
-- [ ] Calculate final total
-- [ ] Return price breakdown
+- [x] Calculate base booking cost
+- [x] Calculate service total
+- [x] Calculate final total
+- [x] Return price breakdown
 
 ## 7.5 Booking Queries
 
-- [ ] Return customer's bookings
-- [ ] Return booking details
-- [ ] Return available seats
-- [ ] Return booking history
-- [ ] Return payment information
+- [x] Return customer's bookings
+- [x] Return booking details
+- [x] Return available seats
+- [x] Return booking history
+- [x] Return payment information
 
 ---
 
@@ -522,41 +522,41 @@ database/procedures.sql
 
 ## 8.1 Create Booking
 
-- [ ] Validate customer
-- [ ] Validate seat
-- [ ] Validate time range
-- [ ] Validate selected services
-- [ ] Check availability
-- [ ] Calculate base cost
-- [ ] Create booking
-- [ ] Add booking services
-- [ ] Calculate final cost
-- [ ] Create payment record where required
-- [ ] Handle exceptions
-- [ ] Complete as one transaction
+- [x] Validate customer
+- [x] Validate seat
+- [x] Validate time range
+- [x] Validate selected services
+- [x] Check availability
+- [x] Calculate base cost
+- [x] Create booking
+- [x] Add booking services
+- [x] Calculate final cost
+- [x] Create payment record where required
+- [x] Handle exceptions
+- [x] Complete as one transaction
 
 ## 8.2 Cancel Booking
 
-- [ ] Validate booking
-- [ ] Validate ownership
-- [ ] Validate current status
-- [ ] Change status to `canceled`
-- [ ] Handle payment state where required
+- [x] Validate booking
+- [x] Validate ownership
+- [x] Validate current status
+- [x] Change status to `canceled`
+- [x] Handle payment state where required
 
 ## 8.3 Check In
 
-- [ ] Validate booking ownership
-- [ ] Validate booking status
-- [ ] Verify check-in eligibility
-- [ ] Change status to `checked_in`
-- [ ] Record check-in timestamp
+- [x] Validate booking ownership
+- [x] Validate booking status
+- [x] Verify check-in eligibility
+- [x] Change status to `checked_in`
+- [x] Record check-in timestamp
 
 ## 8.4 Check Out
 
-- [ ] Validate booking ownership
-- [ ] Require `checked_in` status
-- [ ] Change status to `checked_out`
-- [ ] Record check-out timestamp
+- [x] Validate booking ownership
+- [x] Require `checked_in` status
+- [x] Change status to `checked_out`
+- [x] Record check-out timestamp
 
 ---
 
@@ -572,29 +572,29 @@ Use triggers only where automatic database-side behavior is appropriate.
 
 ## 9.1 Timestamp Handling
 
-- [ ] Automatically maintain relevant timestamps
-- [ ] Test timestamp behavior
+- [x] Automatically maintain relevant timestamps
+- [x] Test timestamp behavior
 
 ## 9.2 Booking Validation
 
-- [ ] Validate booking state transitions where appropriate
-- [ ] Prevent invalid lifecycle transitions
+- [x] Validate booking state transitions where appropriate
+- [x] Prevent invalid lifecycle transitions
 
 ## 9.3 Payment Consistency
 
-- [ ] Prevent invalid payment state changes where required
-- [ ] Keep payment information consistent with booking state
+- [x] Prevent invalid payment state changes where required
+- [x] Keep payment information consistent with booking state
 
 ## 9.4 Derived Data
 
-- [ ] Maintain derived values only where necessary
-- [ ] Avoid duplicating procedure/function logic
+- [x] Maintain derived values only where necessary
+- [x] Avoid duplicating procedure/function logic
 
 ## 9.5 Trigger Testing
 
-- [ ] Test successful trigger execution
-- [ ] Test rejected operations
-- [ ] Test edge cases
+- [x] Test successful trigger execution
+- [x] Test rejected operations
+- [x] Test edge cases
 
 ---
 
@@ -604,10 +604,10 @@ Create useful views for repeated queries.
 
 ## 10.1 Available Seats View
 
-- [ ] Show seats
-- [ ] Show zone
-- [ ] Show seat status
-- [ ] Show pricing information
+- [x] Show seats
+- [x] Show zone
+- [x] Show seat status
+- [x] Show pricing information
 
 ## 10.2 Customer Booking View
 
@@ -695,9 +695,9 @@ backend/main.py
 
 - [x] Initialize FastAPI
 - [x] Add health endpoint
-- [ ] Configure PostgreSQL connection
-- [ ] Configure environment variables
-- [ ] Configure CORS
+- [x] Configure PostgreSQL connection
+- [x] Configure environment variables
+- [x] Configure CORS
 - [ ] Add exception handling
 
 ---
@@ -719,11 +719,11 @@ Registration is handled through the existing `Login.jsx` authentication page rat
 
 ## Login
 
-- [ ] `POST /auth/login`
-- [ ] Validate credentials
-- [ ] Verify password
+- [x] `POST /auth/login`
+- [x] Validate credentials
+- [x] Verify password
 - [ ] Create authentication session/token
-- [ ] Return user information
+- [x] Return user information
 
 ## Current User
 
@@ -783,33 +783,33 @@ PostgreSQL final conflict check
 
 ## Create Booking
 
-- [ ] `POST /bookings`
+- [x] `POST /bookings`
 - [ ] Require authentication
-- [ ] Validate customer
-- [ ] Validate seat
-- [ ] Validate time range
-- [ ] Validate services
-- [ ] Recheck availability
-- [ ] Calculate authoritative cost
-- [ ] Create booking
-- [ ] Return booking information
+- [x] Validate customer
+- [x] Validate seat
+- [x] Validate time range
+- [x] Validate services
+- [x] Recheck availability
+- [x] Calculate authoritative cost
+- [x] Create booking
+- [x] Return booking information
 
 ## Retrieve
 
-- [ ] `GET /bookings/{id}`
+- [x] `GET /bookings/{id}`
 - [ ] `GET /bookings/me`
-- [ ] Return seat
-- [ ] Return zone
-- [ ] Return time slot
-- [ ] Return services
-- [ ] Return total
-- [ ] Return payment status
+- [x] Return seat
+- [x] Return zone
+- [x] Return time slot
+- [x] Return services
+- [x] Return total
+- [x] Return payment status
 
 ## Booking Actions
 
-- [ ] `POST /bookings/{id}/cancel`
-- [ ] `POST /bookings/{id}/check-in`
-- [ ] `POST /bookings/{id}/check-out`
+- [x] `POST /bookings/{id}/cancel`
+- [x] `POST /bookings/{id}/check-in`
+- [x] `POST /bookings/{id}/check-out`
 
 ---
 
@@ -838,11 +838,11 @@ CONFIRMED ─────► CANCELED
 
 Prevent:
 
-- [ ] `CHECKED_OUT → CHECKED_IN`
+- [x] `CHECKED_OUT → CHECKED_IN`
 - [ ] `CHECKED_OUT → CONFIRMED`
-- [ ] `CANCELED → CONFIRMED`
-- [ ] Duplicate check-in
-- [ ] Duplicate check-out
+- [x] `CANCELED → CONFIRMED`
+- [x] Duplicate check-in
+- [x] Duplicate check-out
 - [ ] Unauthorized cancellation
 - [ ] Access to another customer's booking
 
@@ -850,12 +850,12 @@ Prevent:
 
 # 18. Service API
 
-- [ ] `GET /services`
+- [x] `GET /services`
 - [ ] `GET /services/{id}`
 - [ ] `POST /services` — admin
 - [ ] `PUT /services/{id}` — admin
 - [ ] `DELETE /services/{id}` — admin
-- [ ] Add service to booking
+- [x] Add service to booking
 - [ ] Remove service from booking
 - [ ] Update service quantity
 - [ ] Recalculate booking total
@@ -864,13 +864,13 @@ Prevent:
 
 # 19. Payment API
 
-- [ ] `POST /payments`
-- [ ] `GET /payments/{id}`
-- [ ] `GET /payments/me`
-- [ ] Validate booking
-- [ ] Validate amount
-- [ ] Record payment
-- [ ] Update payment status
+- [x] `POST /payments`
+- [x] `GET /payments/{id}`
+- [] `GET /payments/me`
+- [x] Validate booking
+- [x] Validate amount
+- [x] Record payment
+- [x] Update payment status
 - [ ] Return payment information
 - [ ] Protect payment ownership
 
@@ -1353,14 +1353,14 @@ ROLLBACK
 - [x] Define seven tables
 - [x] Define relationships
 - [x] Define constraints
-- [ ] Add indexes
-- [ ] Add GiST support
-- [ ] Add exclusion constraint
+- [x] Add indexes
+- [x] Add GiST support
+- [x] Add exclusion constraint
 - [ ] Add seed data
 
 ## Phase 2 — Database Logic
 
-- [ ] Functions
+- [x] Functions
 - [ ] Procedures
 - [ ] Triggers
 - [ ] Views
@@ -1373,16 +1373,16 @@ ROLLBACK
 ## Phase 3 — Backend
 
 - [x] FastAPI setup
-- [ ] PostgreSQL connection
-- [ ] Environment configuration
-- [ ] CORS
+- [x] PostgreSQL connection
+- [x] Environment configuration
+- [x] CORS
 - [ ] Authentication
-- [ ] Zone API
-- [ ] Seat API
-- [ ] Availability API
-- [ ] Booking API
-- [ ] Service API
-- [ ] Payment API
+- [x] Zone API
+- [x] Seat API
+- [x] Availability API
+- [x] Booking API
+- [x] Service API
+- [x] Payment API
 - [ ] Admin API
 - [ ] Error handling
 
