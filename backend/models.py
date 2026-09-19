@@ -1,6 +1,7 @@
 import bcrypt
 
 from database import get_connection
+from psycopg.types.range import Range
 
 # Retrieve all use from the database.
 def get_all_users():
@@ -118,4 +119,46 @@ def get_seat_by_id(seat_id):
                 """,
                 (seat_id,)
             )
+            return cur.fetchone()
+
+# Create a new booking in the database with the provided user ID, seat ID, start time, end time, services, and quantities.
+def create_booking(
+    user_id,
+    seat_id,
+    start_time,
+    end_time,
+    services,
+    quantities,
+):
+    time_slot = Range(start_time, end_time, bounds="[)")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CALL create_booking(
+                    %s, %s, %s, %s, %s
+                );
+                """,
+                (
+                    user_id,
+                    seat_id,
+                    time_slot,
+                    services,
+                    quantities,
+                ),
+            )
+
+            cur.execute(
+                """
+                SELECT booking_id, user_id, seat_id,
+                       status, created_at
+                FROM bookings
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 1;
+                """,
+                (user_id,),
+            )
+
             return cur.fetchone()

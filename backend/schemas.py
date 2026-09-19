@@ -43,3 +43,20 @@ class SeatResponse(BaseModel):
     zone_id: int
     seat_number: str
     status: str
+
+# Request model for booking creation, including user ID, seat ID, start time, end time, a list of service IDs, and a list of corresponding quantities.
+class BookingCreate(BaseModel):
+    user_id: int
+    seat_id: int
+    start_time: datetime
+    end_time: datetime
+    services: list[int] = []
+    quantities: list[int] = []
+
+# Response model for booking information, including booking ID, user ID, seat ID, status, and creation timestamp.
+class BookingResponse(BaseModel):
+    booking_id: Decimal
+    user_id: int
+    seat_id: int
+    status: str
+    created_at: datetime

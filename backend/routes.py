@@ -11,6 +11,7 @@ from models import (
     get_all_seats,
     get_seats_by_zone,
     get_seat_by_id,
+    create_booking,
 )
 
 from schemas import (
@@ -20,6 +21,8 @@ from schemas import (
     UserResponse,
     ZoneResponse,
     SeatResponse,
+    BookingCreate,
+    BookingResponse,
 )
 
 router = APIRouter()
@@ -181,4 +184,35 @@ def get_seat(seat_id: int):
         "zone_id": seat[1],
         "seat_number": seat[2],
         "status": seat[3],
+    }
+
+# Create a new booking API endpoint
+@router.post(
+    "/bookings",
+    response_model=BookingResponse,
+    status_code=201,
+)
+def create_booking_route(booking: BookingCreate):
+    try:
+        new_booking = create_booking(
+            booking.user_id,
+            booking.seat_id,
+            booking.start_time,
+            booking.end_time,
+            booking.services,
+            booking.quantities,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
+
+    return {
+        "booking_id": new_booking[0],
+        "user_id": new_booking[1],
+        "seat_id": new_booking[2],
+        "status": new_booking[3],
+        "created_at": new_booking[4],
     }
