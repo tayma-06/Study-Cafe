@@ -18,7 +18,7 @@ BEGIN
     INSERT INTO bookings (user_id, seat_id, time_slot)
     VALUES (p_user_id, p_seat_id, p_time_slot)
     RETURNING booking_id INTO p_booking_id;
-    IF p_services IS NOT NULL THEN
+    IF COALESCE(array_length(p_services, 1), 0) > 0 THEN
         FOR i IN 1..array_length(p_services, 1) LOOP
             INSERT INTO booking_services (booking_id, service_id, quantity, unit_price)
             VALUES (
@@ -94,9 +94,14 @@ AS $$
 DECLARE
     i INT;
 BEGIN
-    IF p_services IS NOT NULL THEN
+    IF COALESCE(array_length(p_services, 1), 0) > 0 THEN
         FOR i IN 1..array_length(p_services, 1) LOOP
-            INSERT INTO booking_services (booking_id, service_id, quantity, unit_price)
+            INSERT INTO booking_services (
+                booking_id,
+                service_id,
+                quantity,
+                unit_price
+            )
             VALUES (
                 p_booking_id,
                 p_services[i],
