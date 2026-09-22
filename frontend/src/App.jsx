@@ -1,23 +1,60 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Booking from "./pages/Booking";
 import MyBookings from "./pages/MyBookings";
+import Discover from "./pages/Discover";
 import Admin from "./pages/Admin";
-
-function App() {
+import { Layout, Heading, Protected } from "./components/CustomerUI";
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/booking" element={<Booking />} />
-        <Route path="/bookings" element={<MyBookings />} />
+        <Route path="/login" element={<Login key="login" />} />
+        <Route path="/register" element={<Login key="register" register />} />
+        <Route path="/zones" element={<Discover />} />
+        <Route path="/services" element={<Discover kind="services" />} />
+        <Route path="/pricing" element={<Discover kind="pricing" />} />
+        <Route
+          path="/booking"
+          element={
+            <Protected>
+              <Booking />
+            </Protected>
+          }
+        />
+        <Route
+          path="/bookings"
+          element={
+            <Protected>
+              <MyBookings />
+            </Protected>
+          }
+        />
+        <Route
+          path="/my-bookings"
+          element={
+            <Protected>
+              <MyBookings />
+            </Protected>
+          }
+        />
         <Route path="/admin" element={<Admin />} />
+        <Route
+          path="*"
+          element={
+            <Layout>
+              <Heading title="This spot is still empty.">
+                We couldn’t find that page.
+              </Heading>
+              <Link className="sc-button" to="/">
+                Back to home
+              </Link>
+            </Layout>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
