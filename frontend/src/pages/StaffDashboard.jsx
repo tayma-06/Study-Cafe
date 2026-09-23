@@ -1,13 +1,12 @@
 import { useRef, useState } from "react";
 import {
-  Coffee,
   LayoutDashboard,
   CalendarDays,
   CreditCard,
   Users,
-  Armchair,
   Plus,
   RefreshCw,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Badge,
@@ -1014,6 +1013,7 @@ function Management({ kind }) {
 
 export default function StaffDashboard({ admin = false }) {
   const [tab, setTab] = useState("overview");
+  const [manage, setManage] = useState("zones");
   const summary = useLoad("/staff/summary");
   const bookings = useLoad("/staff/bookings");
   const payments = useLoad("/payment-requests");
@@ -1028,13 +1028,7 @@ export default function StaffDashboard({ admin = false }) {
     ["bookings", "Bookings", CalendarDays],
     ["payments", "Payment approvals", CreditCard],
     ["customers", admin ? "Customers & staff" : "Customers", Users],
-    ...(admin
-      ? [
-          ["zones", "Zones & pricing", Coffee],
-          ["seats", "Seats & availability", Armchair],
-          ["services", "Café services", Coffee],
-        ]
-      : []),
+    ...(admin ? [["management", "Café management", SlidersHorizontal]] : []),
   ];
   const activeTab = tabs.find(([key]) => key === tab)?.[1];
   return (
@@ -1150,8 +1144,34 @@ export default function StaffDashboard({ admin = false }) {
         </>
       )}
       {tab === "customers" && <Accounts admin={admin} onSaved={refresh} />}
-      {admin && ["zones", "seats", "services"].includes(tab) && (
-        <Management kind={tab} key={tab} />
+      {admin && tab === "management" && (
+        <>
+          <div
+            className="staff-choice"
+            role="group"
+            aria-label="Management section"
+          >
+            {(
+              [
+                ["zones", "Zones & pricing"],
+                ["seats", "Seats & availability"],
+                ["services", "Café services"],
+              ]
+            ).map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={
+                  manage === value ? "sc-button" : "sc-button sc-secondary"
+                }
+                onClick={() => setManage(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Management kind={manage} key={manage} />
+        </>
       )}
     </Layout>
   );

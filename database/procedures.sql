@@ -75,7 +75,7 @@ BEGIN
     UPDATE bookings
     SET
         status = 'checked_in',
-        checked_in_at = CURRENT_TIMESTAMP
+        checked_in_at = lower(time_slot)
     WHERE booking_id = p_booking_id;
 END;
 $$;
@@ -105,7 +105,7 @@ BEGIN
     UPDATE bookings
     SET
         status = 'checked_out',
-        checked_out_at = CURRENT_TIMESTAMP
+        checked_out_at = upper(time_slot)
     WHERE booking_id = p_booking_id;
 END;
 $$;
