@@ -20,7 +20,7 @@ export default function App() {
         <Route
           path="/booking"
           element={
-            <Protected>
+            <Protected roles={["customer"]}>
               <Booking />
             </Protected>
           }
