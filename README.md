@@ -1,5 +1,3 @@
-> September 2026 update: receptionist access, admin screens, and simulated bKash payments with staff approval are implemented. See [update and setup instructions](docs/RECEPTIONIST_UPDATE.md) for current database setup and behavior. Earlier pay-at-café-only notes and admin placeholder descriptions below are superseded.
-
 # Study Café
 
 A web-based study café management platform that allows customers to browse study zones, check seat availability, make time-based bookings, manage café services, and handle payments.
@@ -21,8 +19,11 @@ Study Café is built around a **FastAPI + React + PostgreSQL** architecture. Pos
 * Automatic price calculation
 * Payment management
 * Booking and payment status tracking
-* Role-based access control
-* Admin access to user and booking information
+* Role-based access control (customer, receptionist, admin)
+* Desk bookings at reception for customers, new accounts, and walk-in guests
+* Simulated bKash payment requests with staff approval/rejection
+* Cash payment collection at reception
+* Admin management of zones, seats, services, and receptionist accounts
 
 ## Tech Stack
 
@@ -40,18 +41,26 @@ Study Café is built around a **FastAPI + React + PostgreSQL** architecture. Pos
 Study-Cafe/
 │
 ├── backend/
+│   ├── auth.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── routes.py
+│   ├── main.py
+│   └── create_admin.py
 │
 ├── frontend/
 │
-├──  database/
+├── database/
 │   ├── schema.sql
 │   ├── functions.sql
 │   ├── procedures.sql
 │   ├── triggers.sql
 │   ├── views.sql
 │   └── seed.sql
+│
 └── docs/
-
+    └── SETUP.md
 ```
 
 * **Backend** — FastAPI application
@@ -102,16 +111,34 @@ Study-Cafe/
 
 ### Payments
 
-| Method | Endpoint                 | Description             |
-| ------ | ------------------------ | ----------------------- |
-| POST   | `/payments`              | Create a payment        |
-| GET    | `/payments/{booking_id}` | Get payment information |
+| Method | Endpoint                 | Description                                                           |
+| ------ | ------------------------ | --------------------------------------------------------------------- |
+| POST   | `/payments`              | Deprecated — returns 410; use payment requests or staff cash collection |
+| GET    | `/payments/{booking_id}` | Get payment information                                               |
+| POST   | `/payment-requests`      | Submit a simulated bKash transaction for staff approval               |
+| GET    | `/payment-requests`      | Get transaction history (own, or all for staff)                       |
 
 ### Pricing
 
 | Method | Endpoint                       | Description                 |
 | ------ | ------------------------------ | --------------------------- |
 | GET    | `/bookings/{booking_id}/price` | Get booking price breakdown |
+
+### Staff & Admin
+
+| Method | Endpoint                                          | Description                                         |
+| ------ | ------------------------------------------------- | --------------------------------------------------- |
+| POST   | `/admin/receptionists`                            | Create a receptionist account — Admin               |
+| POST   | `/admin/users/{user_id}/role`                     | Grant or remove receptionist access — Admin         |
+| POST   | `/admin/zones`                                    | Create or update a zone — Admin                     |
+| POST   | `/admin/seats`                                    | Create or update a seat — Admin                     |
+| POST   | `/admin/services`                                 | Create or update a service — Admin                  |
+| GET    | `/staff/customers`                                | Search customer accounts — Staff                    |
+| POST   | `/staff/bookings`                                 | Create a booking (customer, new account, or guest)  |
+| GET    | `/staff/bookings`                                 | Staff booking and transaction dashboard             |
+| GET    | `/staff/summary`                                  | Staff dashboard totals (today's bookings/revenue)   |
+| POST   | `/staff/payment-requests/{transaction_id}/review` | Approve or reject a payment request — Staff         |
+| POST   | `/staff/payments/cash`                            | Record cash received — Staff                        |
 
 </details>
 
@@ -122,13 +149,14 @@ Study-Cafe/
 
 #### `users`
 
-Stores customer and administrator accounts.
+Stores customer, receptionist, and administrator accounts.
 
 * `user_id` — BIGINT, Primary Key
 * `name` — TEXT, NOT NULL
 * `email` — TEXT, UNIQUE, NOT NULL
 * `password` — TEXT, NOT NULL
 * `role` — `user_role`
+* `work_email` — TEXT, staff login email for receptionists
 * `created_at` — TIMESTAMP
 
 #### `zones`
@@ -161,12 +189,17 @@ UNIQUE(zone_id, seat_number)
 Stores time-based seat reservations.
 
 * `booking_id` — NUMERIC(12,4), Primary Key
-* `user_id` — BIGINT, Foreign Key → `users`
+* `user_id` — BIGINT, Foreign Key → `users` (nullable for guest bookings)
 * `seat_id` — INT, Foreign Key → `seats`
 * `time_slot` — TSTZRANGE
 * `status` — `booking_status`
 * `checked_in_at` — TIMESTAMPTZ
 * `checked_out_at` — TIMESTAMPTZ
+* `guest_name` — TEXT
+* `guest_phone` — TEXT
+* `guest_email` — TEXT
+* `created_by` — BIGINT, Foreign Key → `users` (staff who made the booking)
+* `hourly_rate` — NUMERIC, the price per hour locked at booking time
 * `created_at` — TIMESTAMPTZ
 
 #### `services`
@@ -202,8 +235,28 @@ Stores booking payment information.
 * `amount` — NUMERIC
 * `method` — `payment_method`
 * `status` — `payment_status`
+* `received_by` — BIGINT, Foreign Key → `users` (staff who approved/recorded the payment)
 * `paid_at` — TIMESTAMPTZ
 * `created_at` — TIMESTAMPTZ
+
+#### `payment_requests`
+
+Stores simulated bKash transactions awaiting staff approval.
+
+* `transaction_id` — TEXT, Primary Key
+* `booking_id` — NUMERIC(12,4), NOT NULL, Foreign Key → `bookings`
+* `amount` — NUMERIC(10,2), NOT NULL
+* `method` — `payment_method`
+* `provider` — TEXT
+* `phone` — TEXT, NOT NULL
+* `status` — TEXT (`pending`, `approved`, `rejected`)
+* `submitted_by` — BIGINT, NOT NULL, Foreign Key → `users`
+* `reviewed_by` — BIGINT, Foreign Key → `users`
+* `review_note` — TEXT
+* `reviewed_at` — TIMESTAMPTZ
+* `created_at` — TIMESTAMPTZ
+
+Constraint: only one `pending`/`approved` request per booking.
 
 ### Relationships
 
@@ -214,7 +267,9 @@ users
           │
           ├──< booking_services >── services
           │
-          └── payments
+          ├── payments
+          │
+          └──< payment_requests (pending approval) ──> users (reviewer)
 ```
 
 </details>
@@ -227,6 +282,7 @@ users
 ```text
 admin
 customer
+receptionist
 ```
 
 ### `booking_status`
@@ -289,6 +345,9 @@ total_price
 | `update_payment_status()`   | Updates booking status based on payment status                      |
 | `check_seat_availability()` | Checks whether a seat is available for a time slot                  |
 | `get_available_seats()`     | Returns available seats for a requested time slot and optional zone |
+| `check_login_email()`       | Prevents duplicate login emails across customer and staff accounts  |
+| `protect_booking_payment()` | Locks the booked hourly rate and guards cancellations during payment review |
+| `protect_booking_services()` | Blocks service changes once a payment has been submitted            |
 
 </details>
 
@@ -328,6 +387,9 @@ total_price
 | `trg_generate_booking_id`   | BEFORE INSERT on `bookings` | `generate_booking_id()`   |
 | `trg_booking_status_update` | AFTER UPDATE on `bookings`  | `update_booking_status()` |
 | `trg_payment_status_update` | AFTER UPDATE on `payments`  | `update_payment_status()` |
+| `trg_check_login_email`        | BEFORE INSERT/UPDATE on `users`             | `check_login_email()`        |
+| `trg_protect_booking_payment`  | BEFORE INSERT/UPDATE on `bookings`          | `protect_booking_payment()`  |
+| `trg_protect_booking_services` | BEFORE INSERT/UPDATE/DELETE on `booking_services` | `protect_booking_services()` |
 
 </details>
 
@@ -336,17 +398,19 @@ total_price
 
 ### Authentication
 
-* Email addresses must be unique.
+* Email addresses must be unique, including across customer login emails and receptionist work emails.
+* Receptionists log in with their café `work_email`; login emails are cross-checked by a trigger.
 * Passwords are stored using bcrypt hashing.
 * JWT authentication is used for protected API operations.
 * Users can access their own protected resources.
-* Admin users have additional management access.
+* Admin users have additional management access; receptionists have staff access.
 
 ### Booking
 
-* A booking belongs to a specific user and seat.
+* A booking belongs to a specific user and seat, or to a walk-in guest (guest details required).
 * Bookings use PostgreSQL `TSTZRANGE` for time slots.
 * A seat cannot have overlapping non-canceled bookings.
+* The `hourly_rate` is locked at booking time so later zone price changes do not alter the price.
 * Only valid booking status transitions are allowed.
 * Confirmed bookings can be checked in.
 * Checked-in bookings can be checked out.
@@ -364,6 +428,9 @@ total_price
 * Payment methods are restricted to the defined `payment_method` domain.
 * Payment statuses are restricted to the defined `payment_status` domain.
 * A completed payment can confirm a pending booking.
+* Mobile payments are simulated as `payment_requests` that staff must approve or reject.
+* Services cannot change once a payment request is pending or the booking is paid.
+* Paid bookings require a refund process instead of cancellation.
 
 </details>
 
@@ -409,7 +476,7 @@ pip install fastapi uvicorn psycopg[binary] python-dotenv bcrypt PyJWT email-val
 
 ### 4. Configure environment variables
 
-Create a `.env` file in the backend/project environment:
+Copy `.env.example` to `.env` (project root) and fill in your values:
 
 ```env
 DB_HOST=localhost
@@ -417,9 +484,24 @@ DB_PORT=5433
 DB_NAME=study_cafe
 DB_USER=your_database_user
 DB_PASSWORD=your_database_password
+JWT_SECRET_KEY=change-this-to-a-long-random-string
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=1440
+# Work email domains allowed for receptionist accounts.
+STAFF_EMAIL_DOMAINS=studycafe.example
 ```
 
-### 5. Start the FastAPI server
+The backend reads `.env` from the project root. You may also set `CORS_ORIGINS` (comma-separated) for the frontend.
+
+### 5. Create the first admin account (optional)
+
+If the database has no admin yet, run from the `backend` directory:
+
+```bash
+python create_admin.py --name "Admin" --email admin@example.com
+```
+
+### 6. Start the FastAPI server
 
 From the `backend` directory:
 
