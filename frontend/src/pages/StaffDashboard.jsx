@@ -117,188 +117,192 @@ function DeskBooking({ onSaved }) {
   if (saved)
     return (
       <div className="sc-card">
-        <h2>Reservation created</h2>
-        <p>
-          Booking #{saved.booking_id}. Open Bookings to collect cash or submit a
-          bKash payment.
-        </p>
-        <button
-          className="sc-button"
-          onClick={() => {
-            setSaved(null);
-            setSeats(null);
-            setSeat("");
-            setQuantities({});
-          }}
-        >
-          Book another visit
-        </button>
+        <div className="sc-card-body">
+          <h2>Reservation created</h2>
+          <p>
+            Booking #{saved.booking_id}. Open Bookings to collect cash or submit
+            a bKash payment.
+          </p>
+          <button
+            className="sc-button"
+            onClick={() => {
+              setSaved(null);
+              setSeats(null);
+              setSeat("");
+              setQuantities({});
+            }}
+          >
+            Book another visit
+          </button>
+        </div>
       </div>
     );
   return (
     <form className="sc-card" onSubmit={submit}>
-      <h2>A seat for every visitor.</h2>
-      <p>
-        Ask whether the customer wants an account, or book their visit as a
-        guest.
-      </p>
-      <div className="staff-choice" role="group" aria-label="Customer type">
-        {[
-          ["existing", "Existing customer"],
-          ["new", "Register customer"],
-          ["guest", "Guest"],
-        ].map(([value, title]) => (
-          <button
-            type="button"
-            className={mode === value ? "sc-button" : "sc-button sc-secondary"}
-            onClick={() => setMode(value)}
-            key={value}
-          >
-            {title}
-          </button>
-        ))}
-      </div>
-      {mode === "existing" ? (
-        <>
-          <Field
-            label="Find customer"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name or email"
-          />
-          <Feedback {...customers}>
-            <Field label="Customer">
-              <select name="customer_id" required defaultValue="">
-                <option value="">Select a customer</option>
-                {customers.data
-                  ?.filter((c) => c.role === "customer")
-                  .map((c) => (
-                    <option key={c.user_id} value={c.user_id}>
-                      {c.name} · {c.email}
-                    </option>
-                  ))}
-              </select>
-            </Field>
-          </Feedback>
-        </>
-      ) : (
-        <div className="staff-form-grid">
-          <Field label="Customer name" name="name" required maxLength={100} />
-          {mode === "new" ? (
-            <>
-              <Field
-                label="Customer email"
-                name="email"
-                type="email"
-                required
-              />
-              <Field
-                label="Password chosen by customer"
-                name="password"
-                type="password"
-                required
-                minLength={8}
-                maxLength={72}
-                autoComplete="new-password"
-              />
-              <label className="staff-consent">
-                <input type="checkbox" name="consent" required /> The customer
-                agrees to create an account.
-              </label>
-            </>
-          ) : (
-            <Field
-              label="Guest phone"
-              name="phone"
-              type="tel"
-              required
-              pattern="[+0-9]{7,15}"
-            />
-          )}
-        </div>
-      )}
-      <hr />
-      <h3>Visit details</h3>
-      <p className="sc-small">All times are in Dhaka time.</p>
-      <div className="staff-form-grid">
-        <Field
-          label="Date"
-          type="date"
-          min={today()}
-          value={date}
-          onChange={(e) => changeTime(setDate, e.target.value)}
-          required
-        />
-        <Field
-          label="Start"
-          type="time"
-          value={start}
-          onChange={(e) => changeTime(setStart, e.target.value)}
-          required
-        />
-        <Field
-          label="End"
-          type="time"
-          value={end}
-          onChange={(e) => changeTime(setEnd, e.target.value)}
-          required
-        />
-      </div>
-      <button
-        type="button"
-        className="sc-button sc-secondary"
-        disabled={busy || !date || start >= end}
-        onClick={findSeats}
-      >
-        Find available seats
-      </button>
-      {seats && (
-        <Field label="Available seat">
-          <select
-            required
-            value={seat}
-            onChange={(e) => setSeat(e.target.value)}
-          >
-            <option value="">
-              {seats.length
-                ? "Choose a seat"
-                : "No seats available for this time"}
-            </option>
-            {seats.map((s) => (
-              <option key={s.seat_id} value={s.seat_id}>
-                {s.zone_name} · {s.seat_number} · {money(s.price_per_hour)}/hour
-              </option>
-            ))}
-          </select>
-        </Field>
-      )}
-      <hr />
-      <h3>Café add-ons</h3>
-      <Feedback {...services}>
-        <div className="staff-form-grid">
-          {services.data?.map((s) => (
-            <Field
-              key={s.service_id}
-              label={`${s.name} · ${money(s.price)}`}
-              type="number"
-              min={0}
-              max={100}
-              value={quantities[s.service_id] || 0}
-              onChange={(e) =>
-                setQuantities({ ...quantities, [s.service_id]: e.target.value })
-              }
-            />
+      <div className="sc-card-body">
+        <h2>A seat for every visitor.</h2>
+        <p>
+          Ask whether the customer wants an account, or book their visit as a
+          guest.
+        </p>
+        <div className="staff-choice" role="group" aria-label="Customer type">
+          {[
+            ["existing", "Existing customer"],
+            ["new", "Register customer"],
+            ["guest", "Guest"],
+          ].map(([value, title]) => (
+            <button
+              type="button"
+              className={mode === value ? "sc-button" : "sc-button sc-secondary"}
+              onClick={() => setMode(value)}
+              key={value}
+            >
+              {title}
+            </button>
           ))}
         </div>
-      </Feedback>
-      {error && (
-        <p className="sc-error" role="alert">
-          {error}
-        </p>
-      )}
-      <button className="sc-button" disabled={busy || !seat}>
-        {busy ? "Saving…" : "Create reservation"}
-      </button>
+        {mode === "existing" ? (
+          <>
+            <Field
+              label="Find customer"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Name or email"
+            />
+            <Feedback {...customers}>
+              <Field label="Customer">
+                <select name="customer_id" required defaultValue="">
+                  <option value="">Select a customer</option>
+                  {customers.data
+                    ?.filter((c) => c.role === "customer")
+                    .map((c) => (
+                      <option key={c.user_id} value={c.user_id}>
+                        {c.name} · {c.email}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+            </Feedback>
+          </>
+        ) : (
+          <div className="staff-form-grid">
+            <Field label="Customer name" name="name" required maxLength={100} />
+            {mode === "new" ? (
+              <>
+                <Field
+                  label="Customer email"
+                  name="email"
+                  type="email"
+                  required
+                />
+                <Field
+                  label="Password chosen by customer"
+                  name="password"
+                  type="password"
+                  required
+                  minLength={8}
+                  maxLength={72}
+                  autoComplete="new-password"
+                />
+                <label className="staff-consent">
+                  <input type="checkbox" name="consent" required /> The customer
+                  agrees to create an account.
+                </label>
+              </>
+            ) : (
+              <Field
+                label="Guest phone"
+                name="phone"
+                type="tel"
+                required
+                pattern="[+0-9]{7,15}"
+              />
+            )}
+          </div>
+        )}
+        <hr />
+        <h3>Visit details</h3>
+        <p className="sc-small">All times are in Dhaka time.</p>
+        <div className="staff-form-grid">
+          <Field
+            label="Date"
+            type="date"
+            min={today()}
+            value={date}
+            onChange={(e) => changeTime(setDate, e.target.value)}
+            required
+          />
+          <Field
+            label="Start"
+            type="time"
+            value={start}
+            onChange={(e) => changeTime(setStart, e.target.value)}
+            required
+          />
+          <Field
+            label="End"
+            type="time"
+            value={end}
+            onChange={(e) => changeTime(setEnd, e.target.value)}
+            required
+          />
+        </div>
+        <button
+          type="button"
+          className="sc-button sc-secondary"
+          disabled={busy || !date || start >= end}
+          onClick={findSeats}
+        >
+          Find available seats
+        </button>
+        {seats && (
+          <Field label="Available seat">
+            <select
+              required
+              value={seat}
+              onChange={(e) => setSeat(e.target.value)}
+            >
+              <option value="">
+                {seats.length
+                  ? "Choose a seat"
+                  : "No seats available for this time"}
+              </option>
+              {seats.map((s) => (
+                <option key={s.seat_id} value={s.seat_id}>
+                  {s.zone_name} · {s.seat_number} · {money(s.price_per_hour)}/hour
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <hr />
+        <h3>Café add-ons</h3>
+        <Feedback {...services}>
+          <div className="staff-form-grid">
+            {services.data?.map((s) => (
+              <Field
+                key={s.service_id}
+                label={`${s.name} · ${money(s.price)}`}
+                type="number"
+                min={0}
+                max={100}
+                value={quantities[s.service_id] || 0}
+                onChange={(e) =>
+                  setQuantities({ ...quantities, [s.service_id]: e.target.value })
+                }
+              />
+            ))}
+          </div>
+        </Feedback>
+        {error && (
+          <p className="sc-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="sc-button" disabled={busy || !seat}>
+          {busy ? "Saving…" : "Create reservation"}
+        </button>
+      </div>
     </form>
   );
 }
@@ -1103,8 +1107,10 @@ export default function StaffDashboard({ admin = false }) {
                 ["Recorded today", money(summary.data?.today_revenue)],
               ].map(([label, value]) => (
                 <div className="sc-card" key={label}>
-                  <p>{label}</p>
-                  <strong>{value}</strong>
+                  <div className="sc-card-body">
+                    <p>{label}</p>
+                    <strong>{value}</strong>
+                  </div>
                 </div>
               ))}
             </div>
