@@ -3,6 +3,9 @@ import bcrypt
 from database import get_connection
 from psycopg.types.range import Range
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+DHAKA_TZ = ZoneInfo("Asia/Dhaka")
 
 # Retrieve all use from the database.
 def get_all_users():
@@ -249,6 +252,7 @@ def create_payment(booking_id, amount, method, status):
                 (booking_id, amount, method, status)
             )
         conn.commit()
+    return get_payment_by_booking_id(booking_id)
 
 # Calculate the total price for a specific booking by calling the stored procedure calculate_total_price with the provided booking ID. The function returns the result of the calculation.
 def calculate_total_price(booking_id):
@@ -328,6 +332,13 @@ def check_out_booking(booking_id):
 # overlap an existing non-canceled booking, matching the database function
 # get_available_seats(p_time_slot, p_zone_id).
 def get_available_seats(start_dt, end_dt, zone_id=None):
+    # Routes pass naive "café local" (Dhaka) times; the schema stores
+    # timestamps with time zone, so interpret those as Asia/Dhaka to
+    # compare against the UTC-normalized booking ranges correctly.
+    if start_dt.tzinfo is None:
+        start_dt = start_dt.replace(tzinfo=DHAKA_TZ)
+    if end_dt.tzinfo is None:
+        end_dt = end_dt.replace(tzinfo=DHAKA_TZ)
     time_slot = Range(start_dt, end_dt, bounds="[)")
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -344,7 +355,7 @@ def get_available_seats(start_dt, end_dt, zone_id=None):
                         FROM bookings b
                         WHERE b.seat_id = s.seat_id
                           AND b.status <> 'canceled'
-                          AND b.time_slot && %s
+                          AND b.time_slot && %s::tstzrange
                     )
                 ORDER BY z.zone_id, s.seat_number;
                 """,
