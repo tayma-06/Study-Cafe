@@ -53,10 +53,15 @@ export async function api(path, options = {}) {
       422: "Please check the information you entered.",
       400: "We could not complete this request. Please refresh and check your selection.",
     };
+    const detail =
+      data && typeof data.detail === "string" && data.detail.length
+        ? data.detail
+        : null;
     const error = new Error(
       path === "/users" && response.status === 409
         ? "An account already uses this email. Please log in."
-        : messages[response.status] ||
+        : detail ||
+            messages[response.status] ||
             "We could not load this information. Please try again.",
     );
     error.status = response.status;

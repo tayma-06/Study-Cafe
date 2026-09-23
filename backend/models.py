@@ -183,15 +183,25 @@ def get_bookings_by_user(user_id):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT booking_id, user_id, seat_id,
-                       time_slot, booking_status,
-                       checked_in_at, checked_out_at,
-                       created_at, seat_number,
-                       zone_name, payment_status,
-                       payment_amount
-                FROM user_bookings
-                WHERE user_id = %s
-                ORDER BY created_at DESC;
+                SELECT
+                    b.booking_id,
+                    b.user_id,
+                    b.seat_id,
+                    b.time_slot,
+                    b.status AS booking_status,
+                    b.checked_in_at,
+                    b.checked_out_at,
+                    b.created_at,
+                    s.seat_number,
+                    z.name AS zone_name,
+                    p.status AS payment_status,
+                    p.amount AS payment_amount
+                FROM bookings b
+                JOIN seats s ON b.seat_id = s.seat_id
+                JOIN zones z ON s.zone_id = z.zone_id
+                LEFT JOIN payments p ON b.booking_id = p.booking_id
+                WHERE b.user_id = %s
+                ORDER BY b.created_at DESC;
             """, (user_id,))
             return cur.fetchall()
 
@@ -313,18 +323,31 @@ def check_out_booking(booking_id):
             )
         conn.commit()
 
-# Retrieve available seats for a specific time range and optional zone ID from the database by calling the stored procedure get_available_seats with the provided start and end datetime values, and an optional zone ID. The function returns the list of available seats.
+# Retrieve available seats for a specific time range and optional zone ID.
+# The specified start and end times are used to exclude any seat that would
+# overlap an existing non-canceled booking, matching the database function
+# get_available_seats(p_time_slot, p_zone_id).
 def get_available_seats(start_dt, end_dt, zone_id=None):
-    conn = get_connection()
-    cur = conn.cursor()
-    if zone_id is None:
-        cur.execute("SELECT * FROM available_seats;")
-    else:
-        cur.execute(
-            "SELECT * FROM available_seats WHERE zone_id = %s;",
-            (zone_id,)
-        )
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return rows
+    time_slot = Range(start_dt, end_dt, bounds="[)")
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT s.seat_id, s.seat_number, z.zone_id,
+                       z.name AS zone_name, z.price_per_hour
+                FROM seats s
+                JOIN zones z ON s.zone_id = z.zone_id
+                WHERE s.status = 'available'
+                    AND (%s::int IS NULL OR s.zone_id = %s)
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM bookings b
+                        WHERE b.seat_id = s.seat_id
+                          AND b.status <> 'canceled'
+                          AND b.time_slot && %s
+                    )
+                ORDER BY z.zone_id, s.seat_number;
+                """,
+                (zone_id, zone_id, time_slot),
+            )
+            return cur.fetchall()
