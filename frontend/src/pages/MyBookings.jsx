@@ -1,3 +1,4 @@
+import PaymentCheckout from "../components/PaymentCheckout";
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Coffee } from "lucide-react";
@@ -19,6 +20,10 @@ function Details({ booking, onClose, onUpdate }) {
   const payment = useLoad(
     "/payments/" + encodeURIComponent(booking.booking_id),
   );
+  const requests = useLoad("/payment-requests");
+  const activeRequest = requests.data?.find(
+    (r) => String(r.booking_id) === String(booking.booking_id),
+  );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [cancel, setCancel] = useState(false);
@@ -29,26 +34,9 @@ function Details({ booking, onClose, onUpdate }) {
     setBusy(true);
     setError("");
     try {
-      if (kind === "payment") {
-        let existing;
-        try {
-          existing = await api(
-            "/payments/" + encodeURIComponent(booking.booking_id),
-          );
-        } catch (e) {
-          if (e.status !== 404) throw e;
-        }
-        if (!existing)
-          await post("/payments", {
-            booking_id: booking.booking_id,
-            amount: price.data.total_price,
-            method: "cash",
-            status: "pending",
-          });
-      } else
-        await post(
-          "/bookings/" + encodeURIComponent(booking.booking_id) + "/" + kind,
-        );
+      await post(
+        "/bookings/" + encodeURIComponent(booking.booking_id) + "/" + kind,
+      );
       onUpdate();
       onClose();
     } catch (e) {
@@ -118,7 +106,8 @@ function Details({ booking, onClose, onUpdate }) {
             <p>Loading payment…</p>
           ) : payment.errorStatus === 404 ? (
             <p className="sc-small">
-              No payment recorded yet. Pay at the café when you arrive.
+              No approved payment yet. Submit a payment below or pay cash at
+              reception.
             </p>
           ) : payment.error ? (
             <>
@@ -173,23 +162,49 @@ function Details({ booking, onClose, onUpdate }) {
                 Check out
               </button>
             )}
-            {!booking.payment_status &&
-              !payment.data &&
-              price.data &&
-              ["pending", "confirmed"].includes(booking.booking_status) && (
-                <button
-                  className="sc-button"
-                  disabled={busy || payment.loading}
-                  onClick={() => action("payment")}
-                >
-                  {busy ? "Saving…" : "Save pay-at-café choice"}
-                </button>
-              )}
           </div>
-          <p className="sc-small">
-            Payment is settled at reception. Booking actions are subject to café
-            rules.
-          </p>
+          <Feedback {...requests}>
+            {activeRequest && (
+              <div className="sc-notice">
+                <p>
+                  Transaction:{" "}
+                  <strong className="sc-transaction">
+                    {activeRequest.transaction_id}
+                  </strong>
+                </p>
+                <p>
+                  Status: {activeRequest.status}
+                  {activeRequest.review_note
+                    ? ` · ${activeRequest.review_note}`
+                    : ""}
+                </p>
+              </div>
+            )}
+            {booking.booking_status === "pending" &&
+              price.data &&
+              (!activeRequest || activeRequest.status === "rejected") && (
+                <PaymentCheckout
+                  bookingId={booking.booking_id}
+                  amount={price.data.total_price}
+                  onSubmitted={requests.retry}
+                />
+              )}
+            {activeRequest?.status === "pending" && (
+              <p>
+                Waiting for admin or receptionist approval.{" "}
+                <button
+                  className="sc-button sc-secondary"
+                  onClick={() => {
+                    requests.retry();
+                    payment.retry();
+                    onUpdate();
+                  }}
+                >
+                  Refresh status
+                </button>
+              </p>
+            )}
+          </Feedback>
         </>
       )}
     </Modal>

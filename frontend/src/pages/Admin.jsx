@@ -1,10 +1,4 @@
-function Admin() {
-  return (
-    <main>
-      <h1>Admin Panel</h1>
-      <p>Manage seats, bookings, and users from here.</p>
-    </main>
-  );
+import StaffDashboard from "./StaffDashboard";
+export default function Admin() {
+  return <StaffDashboard admin />;
 }
-
-export default Admin;

@@ -48,7 +48,14 @@ export default function Login({ register = false }) {
         password,
       });
       saveSession(result, form.get("remember") === "on");
-      navigate(destination, { replace: true });
+      navigate(
+        result.role === "admin"
+          ? "/admin"
+          : result.role === "receptionist"
+            ? "/reception"
+            : destination,
+        { replace: true },
+      );
     } catch (e) {
       setError(e.message);
     } finally {

@@ -1,12 +1,29 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, EmailStr
 from decimal import Decimal
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 # Response model for user creation, including name, email, and password fields.
 class UserCreate(BaseModel):
-    name: str
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value):
+        if not value.strip():
+            raise ValueError("Name is required")
+        return value.strip()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value):
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 bytes")
+        return value
 
 # Response model for user information, including user ID, name, email, role, and creation timestamp.
 class UserResponse(BaseModel):
@@ -47,12 +64,28 @@ class SeatResponse(BaseModel):
 
 # Request model for booking creation, including user ID, seat ID, start time, end time, a list of service IDs, and a list of corresponding quantities.
 class BookingCreate(BaseModel):
-    user_id: int
-    seat_id: int
+    user_id: int | None = None
+    seat_id: int = Field(gt=0)
     start_time: datetime
     end_time: datetime
     services: list[int] = []
     quantities: list[int] = []
+
+    @model_validator(mode="after")
+    def validate_booking(self):
+        from zoneinfo import ZoneInfo
+        from datetime import timezone
+        for field in ("start_time", "end_time"):
+            value = getattr(self, field)
+            if value.tzinfo is None:
+                setattr(self, field, value.replace(tzinfo=ZoneInfo("Asia/Dhaka")))
+        if self.start_time <= datetime.now(timezone.utc) or self.end_time <= self.start_time:
+            raise ValueError("Select a future start time and a later end time")
+        if len(self.services) != len(self.quantities) or len(set(self.services)) != len(self.services):
+            raise ValueError("Select each service once with a matching quantity")
+        if any(q <= 0 or q > 100 for q in self.quantities):
+            raise ValueError("Service quantities must be between 1 and 100")
+        return self
 
 # Response model for booking information, including booking ID, user ID, seat ID, status, and creation timestamp.
 class BookingResponse(BaseModel):
@@ -68,7 +101,7 @@ class BookingResponse(BaseModel):
 # Response model for detail information of booking
 class BookingDetail(BaseModel):
     booking_id: Decimal
-    user_id: int
+    user_id: int | None
     seat_id: int
     status: str
     time_slot: str
@@ -137,3 +170,68 @@ class AvailableSeatResponse(BaseModel):
     zone_id: int
     zone_name: str
     price_per_hour: Decimal
+
+# Request model for an account created by the admin.
+class ReceptionistCreate(UserCreate):
+    pass
+
+# Request model for granting or removing receptionist access.
+class RoleChange(BaseModel):
+    role: Literal["customer", "receptionist"]
+    work_email: EmailStr | None = None
+
+# Request model for a booking made at reception.
+class DeskBooking(BookingCreate):
+    model_config = ConfigDict(extra="forbid")
+    customer: UserCreate | None = None
+    consent: bool = False
+    guest_name: str | None = Field(default=None, min_length=1, max_length=100)
+    guest_phone: str | None = Field(default=None, pattern=r"^\+?[0-9 ()-]{7,20}$")
+    guest_email: EmailStr | None = None
+
+    @model_validator(mode="after")
+    def validate_customer(self):
+        if sum([self.user_id is not None, self.customer is not None, self.guest_name is not None]) != 1:
+            raise ValueError("Choose an existing customer, a new account, or a guest")
+        if self.customer and not self.consent:
+            raise ValueError("Ask the customer for permission before creating an account")
+        if self.guest_name and (not self.guest_name.strip() or not self.guest_phone):
+            raise ValueError("Guest name and phone are required")
+        return self
+
+# Request model for a simulated payment. The amount is calculated by the server.
+class PaymentRequestCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    booking_id: Decimal
+    phone: str = Field(pattern=r"^\+?[0-9 ()-]{7,20}$")
+
+# Request model for recording cash received at reception.
+class CashPayment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    booking_id: Decimal
+    amount_received: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+
+# Request models for managing café zones, seats, and services.
+class ZoneSave(BaseModel):
+    zone_id: int | None = None
+    name: str = Field(min_length=1, max_length=100)
+    description: str = ""
+    price_per_hour: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    facilities: list[str] = []
+
+class SeatSave(BaseModel):
+    seat_id: int | None = None
+    zone_id: int
+    seat_number: str = Field(min_length=1, max_length=30)
+    status: Literal["available", "unavailable"] = "available"
+
+class ServiceSave(BaseModel):
+    service_id: int | None = None
+    name: str = Field(min_length=1, max_length=100)
+    description: str = ""
+    price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+
+# Request model for approving or rejecting a submitted payment.
+class PaymentReview(BaseModel):
+    decision: Literal["approved", "rejected"]
+    note: str = Field(default="", max_length=500)

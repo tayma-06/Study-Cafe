@@ -5,6 +5,7 @@ import Booking from "./pages/Booking";
 import MyBookings from "./pages/MyBookings";
 import Discover from "./pages/Discover";
 import Admin from "./pages/Admin";
+import Reception from "./pages/Reception";
 import { Layout, Heading, Protected } from "./components/CustomerUI";
 export default function App() {
   return (
@@ -40,7 +41,22 @@ export default function App() {
             </Protected>
           }
         />
-        <Route path="/admin" element={<Admin />} />
+        <Route
+          path="/admin"
+          element={
+            <Protected roles={["admin"]}>
+              <Admin />
+            </Protected>
+          }
+        />
+        <Route
+          path="/reception"
+          element={
+            <Protected roles={["admin", "receptionist"]}>
+              <Reception />
+            </Protected>
+          }
+        />
         <Route
           path="*"
           element={

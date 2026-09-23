@@ -1,3 +1,4 @@
+import PaymentCheckout from "../components/PaymentCheckout";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -35,8 +36,7 @@ export default function Booking() {
     [quantities, setQuantities] = useState({}),
     [busy, setBusy] = useState(false),
     [created, setCreated] = useState(null),
-    [finalPrice, setFinalPrice] = useState(null),
-    [payment, setPayment] = useState(null);
+    [finalPrice, setFinalPrice] = useState(null);
   const request = useRef(0),
     lock = useRef(false);
   const selectedZone = zones.data?.find(
@@ -146,38 +146,6 @@ export default function Booking() {
       setBusy(false);
     }
   }
-  async function recordPayment() {
-    if (lock.current || !finalPrice) return;
-    lock.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      let existing;
-      try {
-        existing = await api(
-          "/payments/" + encodeURIComponent(created.booking_id),
-        );
-      } catch (e) {
-        if (e.status !== 404) throw e;
-      }
-      setPayment(
-        existing ||
-          (await post("/payments", {
-            booking_id: created.booking_id,
-            amount: finalPrice.total_price,
-            method: "cash",
-            status: "pending",
-          })),
-      );
-    } catch (e) {
-      setError(
-        "Your booking is saved. We could not record your payment choice. You can retry here or from My Bookings.",
-      );
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
-  }
   return (
     <Layout>
       <Heading
@@ -189,7 +157,7 @@ export default function Booking() {
         }
       >
         {created
-          ? "Your booking is saved. Please settle payment at the café."
+          ? "Your booking is saved. Submit a payment for staff approval."
           : "Choose your time, find a comfortable seat, and make it your own."}
       </Heading>
       <ol className="sc-steps">
@@ -436,10 +404,11 @@ export default function Booking() {
                 <p className="sc-muted">Just the seat. A little simplicity.</p>
               )}
               <div className="sc-notice">
-                <strong>Pay at the café</strong>
+                <strong>Choose how to pay</strong>
                 <p>
-                  No online payment is collected. Your booking remains pending
-                  until the café confirms payment.
+                  Use the bKash payment demo after reserving, or pay cash at
+                  reception. Your booking remains pending until staff approve
+                  payment.
                 </p>
                 <p>
                   The total shown is an estimate based on current rates. Your
@@ -487,20 +456,10 @@ export default function Booking() {
                     <span>Final total</span>
                     <strong>{money(finalPrice.total_price)}</strong>
                   </p>
-                  {payment ? (
-                    <p className="sc-notice">
-                      Payment: <Badge value={payment.status} /> · Please pay at
-                      the café.
-                    </p>
-                  ) : (
-                    <button
-                      className="sc-button"
-                      disabled={busy}
-                      onClick={recordPayment}
-                    >
-                      {busy ? "Saving…" : "Save pay-at-café choice"}
-                    </button>
-                  )}
+                  <PaymentCheckout
+                    bookingId={created.booking_id}
+                    amount={finalPrice.total_price}
+                  />
                 </>
               )}
               <div className="sc-actions">

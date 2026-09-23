@@ -17,11 +17,15 @@ export function useSession() {
   }, []);
   return session;
 }
-export function Protected({ children }) {
+export function Protected({ children, roles }) {
   const session = useSession(),
     location = useLocation();
   return session ? (
-    children
+    roles && !roles.includes(session.role) ? (
+      <Navigate to="/" replace />
+    ) : (
+      children
+    )
   ) : (
     <Navigate
       to="/login"
@@ -107,6 +111,10 @@ export function Layout({ children }) {
             {user ? (
               <>
                 <NavLink to="/bookings">My Bookings</NavLink>
+                {user.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
+                {user.role === "receptionist" && (
+                  <NavLink to="/reception">Reception</NavLink>
+                )}
                 <span className="sc-user">Hi, {user.name.split(" ")[0]}</span>
                 <button
                   className="sc-nav-button"

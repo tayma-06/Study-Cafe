@@ -2,7 +2,11 @@
 // All API requests are intercepted; this test never contacts a real database.
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  executablePath: process.env.CHROME_PATH || undefined,
+  args: ["--no-sandbox"],
+});
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
@@ -31,6 +35,7 @@ const zones = [
 ];
 let bookings = [],
   payments = {},
+  requests = [],
   createCount = 0,
   failPrice = false;
 const calls = [];
@@ -132,14 +137,18 @@ await page.route("http://localhost:8000/**", async (route) => {
       status = 404;
       body = { detail: "Payment not found" };
     }
-  } else if (p === "/payments" && req.method() === "POST") {
-    assert.equal(payload.status, "pending");
-    assert.equal(payload.method, "cash");
-    assert.equal(payload.amount, 380);
-    body = { ...payload, payment_id: 1 };
-    payments[payload.booking_id] = body;
-    bookings[0].payment_status = "pending";
-    bookings[0].payment_amount = 380;
+  } else if (p === "/payment-requests" && req.method() === "POST") {
+    assert.equal(payload.phone, "01711111111");
+    assert.equal(payload.amount, undefined);
+    body = {
+      ...payload,
+      transaction_id: "DEMO-TEST123",
+      amount: 380,
+      status: "pending",
+    };
+    requests = [body];
+  } else if (p === "/payment-requests") {
+    body = requests;
   } else if (p.endsWith("/check-in")) {
     bookings[0].booking_status = "checked_in";
     body = { message: "checked in" };
@@ -190,11 +199,13 @@ await page.getByRole("button", { name: "Add Coffee", exact: true }).click();
 await page.getByRole("button", { name: "Review booking" }).click();
 await page.getByRole("button", { name: "Reserve my seat" }).click();
 await page.getByText("See you at Study Café.").waitFor();
-await page.getByRole("button", { name: "Save pay-at-café choice" }).click();
+await page.getByLabel("bKash mobile number").fill("01711111111");
+await page.getByRole("button", { name: "Pay ৳380 with bKash" }).click();
+await page.getByText("DEMO-TEST123", { exact: true }).waitFor();
 await page
-  .getByText("Please pay at the café.", { exact: false })
-  .last()
+  .getByText("Awaiting admin or receptionist approval.", { exact: false })
   .waitFor();
+requests[0].status = "rejected";
 assert.equal(createCount, 1);
 await page.getByRole("link", { name: "View my bookings" }).click();
 await page.getByRole("button", { name: "View details" }).click();
@@ -275,11 +286,11 @@ assert.equal(
   0,
 );
 assert.equal(
-  await page.getByRole("button", { name: "Save pay-at-café choice" }).count(),
+  await page.getByRole("button", { name: /Pay .* with bKash/ }).count(),
   0,
 );
 assert.deepEqual(errors, []);
 console.log(
-  "PASS: protected routing, registration mismatch/success, login redirect, unavailable seat, add-ons, reservation, pending cash payment, cancel confirmation, desktop/mobile overflow, logout, check-in/out, price failure recovery, no browser exceptions.",
+  "PASS: protected routing, registration mismatch/success, login redirect, unavailable seat, add-ons, reservation, simulated bKash transaction, cancel confirmation, desktop/mobile overflow, logout, check-in/out, price failure recovery, no browser exceptions.",
 );
 await browser.close();

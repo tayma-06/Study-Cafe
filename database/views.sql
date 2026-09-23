@@ -3,7 +3,7 @@ CREATE OR REPLACE VIEW public.user_bookings AS
 SELECT
     b.booking_id,
     b.user_id,
-    u.name AS customer_name,
+    COALESCE(u.name, b.guest_name) AS customer_name,
     u.email,
     s.seat_id,
     s.seat_number,
@@ -17,7 +17,7 @@ SELECT
     b.checked_out_at,
     b.created_at
 FROM bookings b
-JOIN users u ON b.user_id = u.user_id
+LEFT JOIN users u ON b.user_id = u.user_id
 JOIN seats s ON b.seat_id = s.seat_id
 JOIN zones z ON s.zone_id = z.zone_id
 LEFT JOIN payments p ON b.booking_id = p.booking_id
@@ -41,7 +41,7 @@ CREATE OR REPLACE VIEW admin_bookings AS
 SELECT
     b.booking_id,
     b.user_id,
-    u.name AS customer_name,
+    COALESCE(u.name, b.guest_name) AS customer_name,
     u.email AS customer_email,
     s.seat_id,
     s.seat_number,
@@ -60,7 +60,7 @@ SELECT
     b.checked_out_at,
     b.created_at
 FROM bookings b
-JOIN users u ON b.user_id = u.user_id
+LEFT JOIN users u ON b.user_id = u.user_id
 JOIN seats s ON b.seat_id = s.seat_id
 JOIN zones z ON s.zone_id = z.zone_id
 LEFT JOIN payments p ON b.booking_id = p.booking_id
@@ -72,7 +72,7 @@ SELECT
     p.payment_id,
     p.booking_id,
     b.user_id,
-    u.name AS customer_name,
+    COALESCE(u.name, b.guest_name) AS customer_name,
     u.email AS customer_email,
     p.amount,
     p.method AS payment_method,
@@ -81,7 +81,7 @@ SELECT
     p.created_at
 FROM payments p
 JOIN bookings b ON p.booking_id = b.booking_id
-JOIN users u ON b.user_id = u.user_id
+LEFT JOIN users u ON b.user_id = u.user_id
 ORDER BY p.created_at DESC;
 
 -- Shows service usage for bookings
@@ -89,7 +89,7 @@ CREATE OR REPLACE VIEW service_usage AS
 SELECT
     bs.booking_id,
     b.user_id,
-    u.name AS customer_name,
+    COALESCE(u.name, b.guest_name) AS customer_name,
     u.email AS customer_email,
     bs.service_id,
     s.name AS service_name,
@@ -98,7 +98,7 @@ SELECT
     (bs.quantity * bs.unit_price) AS service_total
 FROM booking_services bs
 JOIN bookings b ON bs.booking_id = b.booking_id
-JOIN users u ON b.user_id = u.user_id
+LEFT JOIN users u ON b.user_id = u.user_id
 JOIN services s ON bs.service_id = s.service_id
 ORDER BY bs.booking_id DESC, bs.service_id;
 

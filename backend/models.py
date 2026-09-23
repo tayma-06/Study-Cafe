@@ -1,8 +1,11 @@
 import bcrypt
+from decimal import Decimal
 
 from database import get_connection
+from fastapi import HTTPException
+from psycopg.rows import dict_row
 from psycopg.types.range import Range
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 DHAKA_TZ = ZoneInfo("Asia/Dhaka")
@@ -50,7 +53,7 @@ def create_user(name, email, password):
                 VALUES (%s, %s, %s, 'customer')
                 RETURNING user_id, name, email, role, created_at;
                 """,
-                (name, email, password_hash)
+                (name, str(email).lower(), password_hash)
             )
 
             return cur.fetchone()
@@ -63,9 +66,10 @@ def get_user_by_email(email):
                 """
                 SELECT user_id, name, email, password, role, created_at
                 FROM users
-                WHERE email = %s;
+                WHERE (role = 'receptionist' AND lower(work_email) = lower(%s))
+                   OR (role <> 'receptionist' AND lower(email) = lower(%s));
                 """,
-                (email,)
+                (email, email)
             )
 
             return cur.fetchone()
@@ -125,6 +129,36 @@ def get_seat_by_id(seat_id):
             )
             return cur.fetchone()
 
+# Create a booking and its services in the same database transaction.
+def insert_booking(cur, user_id, seat_id, start, end, services, quantities, created_by,
+                   guest_name=None, guest_phone=None, guest_email=None):
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=ZoneInfo("Asia/Dhaka"))
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=ZoneInfo("Asia/Dhaka"))
+    if start <= datetime.now(timezone.utc) or end <= start:
+        raise HTTPException(400, "Choose a future start time and a later end time")
+    if len(services) != len(quantities) or len(set(services)) != len(services) or any(q <= 0 for q in quantities):
+        raise HTTPException(400, "Invalid service quantities")
+    cur.row_factory = dict_row
+    cur.execute("SELECT s.status, z.price_per_hour FROM seats s JOIN zones z USING(zone_id) WHERE seat_id=%s FOR UPDATE OF s", (seat_id,))
+    seat = cur.fetchone()
+    if not seat or seat["status"] != "available":
+        raise HTTPException(409, "This seat is unavailable")
+    cur.execute("""INSERT INTO bookings(user_id, seat_id, time_slot, created_by, guest_name, guest_phone, guest_email, hourly_rate)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
+                (user_id, seat_id, Range(start, end, bounds="[)"), created_by, guest_name, guest_phone, guest_email, seat["price_per_hour"]))
+    booking = cur.fetchone()
+    for service_id, quantity in zip(services, quantities):
+        cur.execute("SELECT price FROM services WHERE service_id=%s", (service_id,))
+        service = cur.fetchone()
+        if not service:
+            raise HTTPException(400, "Service not found")
+        cur.execute("INSERT INTO booking_services VALUES (%s,%s,%s,%s)", (booking["booking_id"], service_id, quantity, service["price"]))
+    booking["booking_id"] = str(booking["booking_id"])
+    booking["time_slot"] = str(booking["time_slot"])
+    return booking
+
 # Create a new booking in the database with the provided user ID, seat ID, start time, end time, services, and quantities.
 def create_booking(
     user_id,
@@ -134,38 +168,10 @@ def create_booking(
     services,
     quantities,
 ):
-    time_slot = Range(start_time, end_time, bounds="[)")
-
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                CALL create_booking(
-                    %s, %s, %s, %s, %s
-                );
-                """,
-                (
-                    user_id,
-                    seat_id,
-                    time_slot,
-                    services,
-                    quantities,
-                ),
-            )
-
-            cur.execute(
-                """
-                SELECT booking_id, user_id, seat_id,
-                       status, created_at
-                FROM bookings
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-                LIMIT 1;
-                """,
-                (user_id,),
-            )
-
-            return cur.fetchone()
+    with get_connection() as conn, conn.cursor() as cur:
+        row = insert_booking(cur, user_id, seat_id, start_time, end_time,
+                             services, quantities, user_id)
+        return (row["booking_id"], row["user_id"], row["seat_id"], row["status"], row["created_at"])
 
 # Retrieve a booking by its ID from the database.
 def get_booking_by_id(booking_id):
@@ -362,3 +368,43 @@ def get_available_seats(start_dt, end_dt, zone_id=None):
                 (zone_id, zone_id, time_slot),
             )
             return cur.fetchall()
+
+# Create a customer or receptionist account with a hashed password.
+def insert_user(cur, data, role="customer", work_email=None):
+    cur.execute("""INSERT INTO users(name,email,password,role,work_email) VALUES(%s,%s,%s,%s,%s)
+                   RETURNING user_id,name,email,role,work_email,created_at""",
+                (data.name.strip(), str(data.email).lower(), bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode(), role, work_email))
+    return cur.fetchone()
+
+# Lock a booking before changing its payment information.
+def lock_booking(cur, booking_id, user):
+    cur.execute("SELECT * FROM bookings WHERE booking_id=%s FOR UPDATE", (booking_id,))
+    booking = cur.fetchone()
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    if user["role"] not in ("admin", "receptionist") and booking["user_id"] != user["user_id"]:
+        raise HTTPException(403, "Not your booking")
+    if booking["status"] != "pending":
+        raise HTTPException(409, "Only a pending booking can receive payment")
+    cur.execute("SELECT status FROM payments WHERE booking_id=%s", (booking_id,))
+    payment = cur.fetchone()
+    if payment and payment["status"] == "completed":
+        raise HTTPException(409, "This booking has already been paid")
+    return booking
+
+# Calculate the amount from stored booking prices.
+def booking_total(cur, booking_id):
+    cur.execute("SELECT * FROM calculate_total_price(%s)", (booking_id,))
+    amount = cur.fetchone()["total_price"]
+    if amount is None or amount <= 0:
+        raise HTTPException(400, "The booking must have a positive total")
+    return amount.quantize(Decimal("0.01"))
+
+# Save a completed payment and confirm the booking.
+def complete_payment(cur, booking_id, amount, method, received_by):
+    cur.execute("""INSERT INTO payments(booking_id,amount,method,status,paid_at,received_by)
+                   VALUES(%s,%s,%s,'completed',CURRENT_TIMESTAMP,%s)
+                   ON CONFLICT(booking_id) DO UPDATE SET amount=EXCLUDED.amount, method=EXCLUDED.method,
+                   status='completed', paid_at=CURRENT_TIMESTAMP, received_by=EXCLUDED.received_by""",
+                (booking_id, amount, method, received_by))
+    cur.execute("UPDATE bookings SET status='confirmed' WHERE booking_id=%s AND status='pending'", (booking_id,))

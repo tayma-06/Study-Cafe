@@ -4,6 +4,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     max_id users.user_id%TYPE;
 BEGIN
+    PERFORM pg_advisory_xact_lock(101);
     SELECT MAX(user_id) INTO max_id FROM users
     WHERE TO_CHAR(created_at, 'YYYYMMDD') = TO_CHAR(NEW.created_at, 'YYYYMMDD');
     IF max_id IS NULL THEN
@@ -22,6 +23,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     max_id bookings.booking_id%TYPE;
 BEGIN
+    PERFORM pg_advisory_xact_lock(102);
     SELECT MAX(booking_id) INTO max_id FROM bookings
     WHERE TO_CHAR(created_at, 'YYYYMMDD') = TO_CHAR(NEW.created_at, 'YYYYMMDD');
     IF max_id IS NULL THEN
@@ -56,7 +58,7 @@ DECLARE
     duration NUMERIC;
 
 BEGIN
-    SELECT b.time_slot, z.price_per_hour INTO time_slot, price_per_hour
+    SELECT b.time_slot, COALESCE(b.hourly_rate, z.price_per_hour) INTO time_slot, price_per_hour
     FROM bookings b
     JOIN seats s ON b.seat_id = s.seat_id
     JOIN zones z ON s.zone_id = z.zone_id
@@ -72,7 +74,7 @@ RETURNS NUMERIC AS $$
 DECLARE
     total_service_cost NUMERIC;
 BEGIN
-    SELECT COALESCE(SUM(bs.quantity * s.price), 0) INTO total_service_cost
+    SELECT COALESCE(SUM(bs.quantity * bs.unit_price), 0) INTO total_service_cost
     FROM booking_services bs
     JOIN services s ON bs.service_id = s.service_id
     WHERE bs.booking_id = p_booking_id;
@@ -136,6 +138,58 @@ BEGIN
         FROM bookings
         WHERE seat_id = p_seat_id AND status <> 'canceled' AND time_slot && p_time_slot
     );
+END;
+$$ LANGUAGE plpgsql;
+
+--- Prevent duplicate login emails across customer, receptionist, and admin accounts
+CREATE OR REPLACE FUNCTION check_login_email()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM pg_advisory_xact_lock(103);
+    IF EXISTS (SELECT 1 FROM users WHERE user_id <> NEW.user_id AND
+        (lower(email)=lower(NEW.email) OR lower(work_email)=lower(NEW.email) OR
+         lower(email)=lower(NEW.work_email) OR lower(work_email)=lower(NEW.work_email))) THEN
+        RAISE EXCEPTION 'Email already belongs to another account' USING ERRCODE='23505';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Keeps the booked hourly rate and blocks cancellations while a payment is in review
+CREATE OR REPLACE FUNCTION protect_booking_payment()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP='INSERT' THEN
+        IF NEW.hourly_rate IS NULL THEN
+            SELECT z.price_per_hour INTO NEW.hourly_rate FROM seats s JOIN zones z USING(zone_id) WHERE s.seat_id=NEW.seat_id;
+        END IF;
+    ELSIF NEW.status='canceled' AND OLD.status <> 'canceled' THEN
+        IF OLD.status NOT IN ('pending','confirmed') OR
+           EXISTS(SELECT 1 FROM payments WHERE booking_id=OLD.booking_id AND status='completed') OR
+           EXISTS(SELECT 1 FROM payment_requests WHERE booking_id=OLD.booking_id AND status='pending') THEN
+            RAISE EXCEPTION 'Reject pending payments before canceling. Paid bookings require a separate refund process.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Prevents service changes once a payment has been submitted
+CREATE OR REPLACE FUNCTION protect_booking_services()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_id NUMERIC;
+    current_status TEXT;
+BEGIN
+    target_id := COALESCE(NEW.booking_id, OLD.booking_id);
+    SELECT status INTO current_status FROM bookings WHERE booking_id=target_id FOR UPDATE;
+    IF current_status <> 'pending' OR
+       EXISTS(SELECT 1 FROM payment_requests WHERE booking_id=target_id AND status IN ('pending','approved')) OR
+       EXISTS(SELECT 1 FROM payments WHERE booking_id=target_id AND status='completed') THEN
+        RAISE EXCEPTION 'Services cannot change after payment is submitted';
+    END IF;
+    IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 

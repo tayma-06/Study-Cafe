@@ -1,3 +1,5 @@
+> September 2026 update: receptionist access, admin screens, and simulated bKash payments with staff approval are implemented. See [update and setup instructions](docs/RECEPTIONIST_UPDATE.md) for current database setup and behavior. Earlier pay-at-café-only notes and admin placeholder descriptions below are superseded.
+
 # Study Café
 
 A web-based study café management platform that allows customers to browse study zones, check seat availability, make time-based bookings, manage café services, and handle payments.

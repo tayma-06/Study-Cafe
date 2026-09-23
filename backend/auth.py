@@ -24,7 +24,7 @@ def unauthorized():
 
 # This code provides authentication utilities for the Study Café API.
 def create_access_token(user_id: int, role: str) -> str:
-    if user_id <= 0 or role not in ('admin', 'customer'):
+    if user_id <= 0 or role not in ('admin', 'customer', 'receptionist'):
         raise ValueError('Invalid user claims')
     now = datetime.now(timezone.utc)
     return jwt.encode({'sub': str(user_id), 'role': role, 'iat': now,
@@ -38,7 +38,7 @@ def decode_access_token(token: str) -> dict:
         sub = payload.get('sub')
         if not isinstance(sub, str) or not sub.isascii() or not sub.isdigit():
             raise ValueError('Invalid subject')
-        if not 0 < int(sub) <= 9223372036854775807 or payload.get('role') not in ('admin', 'customer'):
+        if not 0 < int(sub) <= 9223372036854775807 or payload.get('role') not in ('admin', 'customer', 'receptionist'):
             raise ValueError('Invalid claims')
         return payload
     except (JWTError, ValueError, TypeError):
@@ -59,4 +59,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(
 def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
     if current_user['role'] != 'admin':
         raise HTTPException(403, 'Admin access required')
+    return current_user
+
+
+# Check if the current user has staff privileges.
+def require_staff(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user['role'] not in ('admin', 'receptionist'):
+        raise HTTPException(403, 'Staff access required')
     return current_user
