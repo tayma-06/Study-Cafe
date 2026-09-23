@@ -1,5 +1,5 @@
 -- Shows a list of all bookings for customers, including seat, zone, and payment details
-CREATE OR REPLACE VIEW user_bookings AS
+CREATE OR REPLACE VIEW public.user_bookings AS
 SELECT
     b.booking_id,
     b.user_id,
@@ -9,10 +9,8 @@ SELECT
     s.seat_number,
     z.zone_id,
     z.name AS zone_name,
-    lower(b.time_slot) AS start_time,
-    upper(b.time_slot) AS end_time,
+    b.time_slot,
     b.status AS booking_status,
-    b.booking_cost,
     p.status AS payment_status,
     p.amount AS payment_amount,
     b.checked_in_at,
