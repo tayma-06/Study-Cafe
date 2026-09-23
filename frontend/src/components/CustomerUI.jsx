@@ -110,7 +110,9 @@ export function Layout({ children }) {
             <NavLink to="/pricing">Pricing</NavLink>
             {user ? (
               <>
-                <NavLink to="/bookings">My Bookings</NavLink>
+                {user.role === "customer" && (
+                  <NavLink to="/bookings">My Bookings</NavLink>
+                )}
                 {user.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
                 {user.role === "receptionist" && (
                   <NavLink to="/reception">Reception</NavLink>
