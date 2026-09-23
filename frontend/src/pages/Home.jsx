@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { useSession } from "../components/CustomerUI";
 import ZoneCard from "../components/ZoneCard";
 import cafeExterior from "../assets/illustrations/cafe-exterior.jpeg";
 import quietZone from "../assets/illustrations/quiet-zone.png";
@@ -17,6 +18,7 @@ import reception from "../assets/illustrations/reception.png";
 import serviceArea from "../assets/illustrations/service-area.png";
 
 function Home() {
+  const user = useSession();
   const [currentImage, setCurrentImage] = useState(0);
   const heroImages = [
     cafeExterior,
@@ -382,9 +384,11 @@ function Home() {
             <Link to="/booking">
               Book a Seat
             </Link>
-            <Link to="/bookings">
-              My Bookings
-            </Link>
+            {user?.role === "customer" && (
+              <Link to="/bookings">
+                My Bookings
+              </Link>
+            )}
           </div>
         </div>
         <div className="footer-bottom">

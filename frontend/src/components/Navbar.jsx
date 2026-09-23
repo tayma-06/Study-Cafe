@@ -16,7 +16,7 @@ function Navbar() {
         <a href="#zones">Study Zones</a>
         <a href="#services">Services</a>
         <a href="#pricing">Pricing</a>
-        <Link to="/bookings">My Bookings</Link>
+        {user?.role === "customer" && <Link to="/bookings">My Bookings</Link>}
         {user?.role === "admin" && <Link to="/admin">Admin</Link>}
         {user?.role === "receptionist" && (
           <Link to="/reception">Reception</Link>

@@ -28,7 +28,7 @@ export default function App() {
         <Route
           path="/bookings"
           element={
-            <Protected>
+            <Protected roles={["customer"]}>
               <MyBookings />
             </Protected>
           }
@@ -36,7 +36,7 @@ export default function App() {
         <Route
           path="/my-bookings"
           element={
-            <Protected>
+            <Protected roles={["customer"]}>
               <MyBookings />
             </Protected>
           }
