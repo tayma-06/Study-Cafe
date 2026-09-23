@@ -1,12 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  LayoutDashboard,
+  ArrowRight,
+  Armchair,
   CalendarDays,
+  Check,
+  Coffee,
   CreditCard,
-  Users,
+  LayoutDashboard,
   Plus,
   RefreshCw,
   SlidersHorizontal,
+  Users,
 } from "lucide-react";
 import {
   Badge,
@@ -18,7 +22,8 @@ import {
 } from "../components/CustomerUI";
 import PaymentCheckout from "../components/PaymentCheckout";
 import { api, post } from "../services/api";
-import { money, slotLabel, today } from "../utils/customer";
+import SeatCard from "../components/SeatCard";
+import { money, slotLabel, today, zoneImage } from "../utils/customer";
 import receptionArt from "../assets/illustrations/reception.png";
 import "../styles/staff.css";
 
@@ -35,41 +40,80 @@ function DeskBooking({ onSaved }) {
   const [mode, setMode] = useState("existing");
   const [query, setQuery] = useState("");
   const customers = useLoad("/staff/customers?q=" + encodeURIComponent(query));
+  const zones = useLoad("/zones");
   const services = useLoad("/services");
+  const [customerId, setCustomerId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const [date, setDate] = useState(today());
   const [start, setStart] = useState("10:00");
   const [end, setEnd] = useState("12:00");
-  const [seats, setSeats] = useState(null);
-  const [seat, setSeat] = useState("");
+  const [zone, setZone] = useState("");
+  const [seat, setSeat] = useState(null);
+  const [availability, setAvailability] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [step, setStep] = useState(0);
   const [quantities, setQuantities] = useState({});
   const [saved, setSaved] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
-  const searchSequence = useRef(0);
-  function changeTime(setter, value) {
-    searchSequence.current += 1;
-    setter(value);
-    setSeats(null);
-    setSeat("");
-  }
-  async function findSeats() {
+  const request = useRef(0);
+  useEffect(() => {
+    request.current += 1;
+    setAvailability(null);
+    setSeat(null);
+    setChecking(false);
     setError("");
-    setBusy(true);
-    const sequence = ++searchSequence.current;
+  }, [date, start, end, zone]);
+  useEffect(() => () => void request.current++, []);
+  const selectedZone = zones.data?.find(
+    (z) => String(z.zone_id) === String(zone),
+  );
+  const duration =
+    (new Date(date + "T" + end + "+06:00") -
+      new Date(date + "T" + start + "+06:00")) /
+    3600000;
+  const addons = (services.data || []).filter(
+    (s) => quantities[s.service_id] > 0,
+  );
+  const estimatedBase =
+    (Number(selectedZone?.price_per_hour) || 0) * Math.max(0, duration || 0);
+  const estimatedServices = addons.reduce(
+    (total, s) => total + Number(s.price) * quantities[s.service_id],
+    0,
+  );
+  async function search(event) {
+    event?.preventDefault();
+    setError("");
+    if (!zone || !date || !start || !end || duration <= 0) {
+      setError("Choose a zone and a time window with the end after the start.");
+      return;
+    }
+    const id = ++request.current;
+    setChecking(true);
+    setAvailability(null);
+    setSeat(null);
     try {
-      const result = await api(
-        "/availability?" +
-          new URLSearchParams({ date, start_time: start, end_time: end }),
-      );
-      if (sequence === searchSequence.current) {
-        setSeats(result);
-        setSeat("");
-      }
+      const params = new URLSearchParams({
+        date,
+        start_time: start,
+        end_time: end,
+        zone_id: zone,
+      });
+      const [available, all] = await Promise.all([
+        api("/availability?" + params),
+        api("/zones/" + zone + "/seats"),
+      ]);
+      if (id === request.current) setAvailability({ available, all });
     } catch (e) {
-      setError(e.message);
+      if (id === request.current) setError(e.message);
     } finally {
-      setBusy(false);
+      if (id === request.current) setChecking(false);
     }
   }
   async function submit(event) {
@@ -78,34 +122,39 @@ function DeskBooking({ onSaved }) {
     lock.current = true;
     setBusy(true);
     setError("");
-    const form = new FormData(event.currentTarget);
-    const chosen = Object.entries(quantities).filter(
-      ([, quantity]) => Number(quantity) > 0,
-    );
     const body = {
-      seat_id: Number(seat),
+      seat_id: seat.seat_id,
       start_time: `${date}T${start}:00+06:00`,
       end_time: `${date}T${end}:00+06:00`,
-      services: chosen.map(([id]) => Number(id)),
-      quantities: chosen.map(([, quantity]) => Number(quantity)),
+      services: addons.map((s) => s.service_id),
+      quantities: addons.map((s) => quantities[s.service_id]),
     };
-    if (mode === "existing") body.user_id = Number(form.get("customer_id"));
+    if (mode === "existing") {
+      if (!customerId) {
+        setError("Pick the customer for this visit.");
+        lock.current = false;
+        setBusy(false);
+        return;
+      }
+      body.user_id = Number(customerId);
+    }
     if (mode === "new") {
       body.customer = {
-        name: form.get("name"),
-        email: form.get("email"),
-        password: form.get("password"),
+        name: newName,
+        email: newEmail,
+        password: newPassword,
       };
-      body.consent = form.get("consent") === "on";
+      body.consent = consent;
     }
     if (mode === "guest") {
-      body.guest_name = form.get("name");
-      body.guest_phone = form.get("phone");
+      body.guest_name = guestName;
+      body.guest_phone = guestPhone;
     }
     try {
       const booking = await post("/staff/bookings", body);
       setSaved(booking);
       onSaved();
+      setStep(4);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -117,6 +166,9 @@ function DeskBooking({ onSaved }) {
     return (
       <div className="sc-card">
         <div className="sc-card-body">
+          <div className="sc-confirm-icon">
+            <Check size={32} />
+          </div>
           <h2>Reservation created</h2>
           <p>
             Booking #{saved.booking_id}. Open Bookings to collect cash or submit
@@ -126,9 +178,11 @@ function DeskBooking({ onSaved }) {
             className="sc-button"
             onClick={() => {
               setSaved(null);
-              setSeats(null);
-              setSeat("");
+              setAvailability(null);
+              setSeat(null);
+              setZone("");
               setQuantities({});
+              setStep(0);
             }}
           >
             Book another visit
@@ -137,172 +191,462 @@ function DeskBooking({ onSaved }) {
       </div>
     );
   return (
-    <form className="sc-card" onSubmit={submit}>
-      <div className="sc-card-body">
-        <h2>A seat for every visitor.</h2>
-        <p>
-          Ask whether the customer wants an account, or book their visit as a
-          guest.
-        </p>
-        <div className="staff-choice" role="group" aria-label="Customer type">
-          {[
-            ["existing", "Existing customer"],
-            ["new", "Register customer"],
-            ["guest", "Guest"],
-          ].map(([value, title]) => (
-            <button
-              type="button"
-              className={mode === value ? "sc-button" : "sc-button sc-secondary"}
-              onClick={() => setMode(value)}
-              key={value}
+    <>
+      <ol className="sc-steps">
+        {["Visitor", "Time & seat", "Café add-ons", "Review"].map(
+          (label, i) => (
+            <li
+              key={label}
+              className={
+                i === step ? "is-active" : i < step ? "is-complete" : ""
+              }
             >
-              {title}
-            </button>
-          ))}
-        </div>
-        {mode === "existing" ? (
-          <>
-            <Field
-              label="Find customer"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Name or email"
-            />
-            <Feedback {...customers}>
-              <Field label="Customer">
-                <select name="customer_id" required defaultValue="">
-                  <option value="">Select a customer</option>
-                  {customers.data
-                    ?.filter((c) => c.role === "customer")
-                    .map((c) => (
-                      <option key={c.user_id} value={c.user_id}>
-                        {c.name} · {c.email}
-                      </option>
+              <span>{i < step ? <Check size={16} /> : i + 1}</span>
+              {label}
+            </li>
+          ),
+        )}
+      </ol>
+      <div className="sc-booking-layout">
+        <section className="sc-card sc-workspace">
+          {error && (
+            <p className="sc-error" role="alert">
+              {error}
+            </p>
+          )}
+          {step === 0 && (
+            <>
+              <h2>Who is this visit for?</h2>
+              <p className="sc-muted">
+                Find an existing customer, register a new one, or book them as
+                a walk-in guest.
+              </p>
+              <div
+                className="staff-choice"
+                role="group"
+                aria-label="Customer type"
+              >
+                {[
+                  ["existing", "Existing customer"],
+                  ["new", "Register customer"],
+                  ["guest", "Guest"],
+                ].map(([value, title]) => (
+                  <button
+                    type="button"
+                    className={
+                      mode === value ? "sc-button" : "sc-button sc-secondary"
+                    }
+                    onClick={() => setMode(value)}
+                    key={value}
+                  >
+                    {title}
+                  </button>
+                ))}
+              </div>
+              {mode === "existing" ? (
+                <>
+                  <Field
+                    label="Find customer"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Name or email"
+                  />
+                  <Feedback {...customers}>
+                    <Field label="Customer">
+                      <select
+                        value={customerId}
+                        onChange={(e) => setCustomerId(e.target.value)}
+                        required
+                      >
+                        <option value="">Select a customer</option>
+                        {customers.data
+                          ?.filter((c) => c.role === "customer")
+                          .map((c) => (
+                            <option key={c.user_id} value={c.user_id}>
+                              {c.name} · {c.email}
+                            </option>
+                          ))}
+                      </select>
+                    </Field>
+                  </Feedback>
+                </>
+              ) : (
+                <>
+                  <Field
+                    label="Customer name"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    required
+                    maxLength={100}
+                  />
+                  {mode === "new" ? (
+                    <>
+                      <Field
+                        label="Customer email"
+                        type="email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        required
+                      />
+                      <Field
+                        label="Password chosen by customer"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        maxLength={72}
+                        autoComplete="new-password"
+                      />
+                      <label className="staff-consent">
+                        <input
+                          type="checkbox"
+                          checked={consent}
+                          onChange={(e) => setConsent(e.target.checked)}
+                        />
+                        I confirm the customer chose a password and agreed to
+                        save their details.
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <Field
+                        label="Customer name"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        required
+                        maxLength={100}
+                      />
+                      <Field
+                        label="Guest phone"
+                        type="tel"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                        required
+                        pattern="[+0-9]{7,15}"
+                      />
+                    </>
+                  )}
+                </>
+              )}
+              <div className="sc-actions">
+                <button
+                  className="sc-button"
+                  disabled={
+                    mode === "existing"
+                      ? !customerId
+                      : mode === "new"
+                        ? !newName || !newEmail || !newPassword || !consent
+                        : !newName || !guestPhone
+                  }
+                  onClick={() => setStep(1)}
+                >
+                  Continue <ArrowRight size={16} />
+                </button>
+              </div>
+            </>
+          )}
+          {step === 1 && (
+            <>
+              <h2>
+                <CalendarDays size={23} /> When would you like this seat?
+              </h2>
+              <p className="sc-muted">
+                Walk-ins welcome — book now or later. Times are café local time
+                (Dhaka).
+              </p>
+              <Feedback {...zones}>
+                <form onSubmit={search}>
+                  <div className="sc-fields">
+                    <label>
+                      Date
+                      <input
+                        type="date"
+                        min={today()}
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        required
+                      />
+                    </label>
+                    <label>
+                      From
+                      <input
+                        type="time"
+                        value={start}
+                        onChange={(e) => setStart(e.target.value)}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Until
+                      <input
+                        type="time"
+                        value={end}
+                        onChange={(e) => setEnd(e.target.value)}
+                        required
+                      />
+                    </label>
+                  </div>
+                  <h3>Choose a study zone</h3>
+                  <div className="sc-zone-options">
+                    {zones.data?.map((z) => (
+                      <button
+                        type="button"
+                        className={
+                          String(z.zone_id) === String(zone)
+                            ? "sc-zone selected"
+                            : "sc-zone"
+                        }
+                        aria-pressed={String(z.zone_id) === String(zone)}
+                        onClick={() => setZone(String(z.zone_id))}
+                        key={z.zone_id}
+                      >
+                        <img src={zoneImage(z.name)} alt="" />
+                        <strong>{z.name}</strong>
+                        <small>{money(z.price_per_hour)}/hour</small>
+                      </button>
                     ))}
-                </select>
-              </Field>
-            </Feedback>
-          </>
-        ) : (
-          <div className="staff-form-grid">
-            <Field label="Customer name" name="name" required maxLength={100} />
-            {mode === "new" ? (
-              <>
-                <Field
-                  label="Customer email"
-                  name="email"
-                  type="email"
-                  required
-                />
-                <Field
-                  label="Password chosen by customer"
-                  name="password"
-                  type="password"
-                  required
-                  minLength={8}
-                  maxLength={72}
-                  autoComplete="new-password"
-                />
-                <label className="staff-consent">
-                  <input type="checkbox" name="consent" required /> The customer
-                  agrees to create an account.
-                </label>
-              </>
-            ) : (
-              <Field
-                label="Guest phone"
-                name="phone"
-                type="tel"
-                required
-                pattern="[+0-9]{7,15}"
-              />
-            )}
+                  </div>
+                  <button
+                    className="sc-button sc-secondary"
+                    disabled={checking || !zone}
+                  >
+                    {checking ? "Checking seats…" : "Find available seats"}
+                    <ArrowRight size={16} />
+                  </button>
+                </form>
+              </Feedback>
+              {availability && (
+                <div className="sc-seat-area">
+                  <h3>
+                    <Armchair size={21} /> Pick a seat for this visit
+                  </h3>
+                  <p className="sc-small">
+                    Available · Selected · Booked · Unavailable
+                  </p>
+                  <div className="sc-seat-grid">
+                    {availability.all.map((s) => (
+                      <SeatCard
+                        key={s.seat_id}
+                        seat={s}
+                        state={
+                          seat?.seat_id === s.seat_id
+                            ? "selected"
+                            : s.status !== "available"
+                              ? "unavailable"
+                              : availability.available.some(
+                                  (a) => a.seat_id === s.seat_id,
+                                )
+                                ? "available"
+                                : "booked"
+                        }
+                        onSelect={() =>
+                          setSeat(seat?.seat_id === s.seat_id ? null : s)
+                        }
+                      />
+                    ))}
+                  </div>
+                  {availability.available.length === 0 && (
+                    <p className="sc-notice">
+                      No seats available for this time. Try another time or
+                      zone.
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="sc-actions">
+                <button
+                  className="sc-button sc-secondary"
+                  onClick={() => setStep(0)}
+                >
+                  Back
+                </button>
+                <button
+                  className="sc-button"
+                  disabled={!seat || checking}
+                  onClick={() => setStep(2)}
+                >
+                  Choose add-ons <ArrowRight size={16} />
+                </button>
+              </div>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <h2>
+                <Coffee size={23} /> Add a little something
+              </h2>
+              <p className="sc-muted">
+                Optional extras for this visit. Add only what they ask for.
+              </p>
+              <Feedback {...services}>
+                {services.data?.map((s) => (
+                  <div className="sc-service-row" key={s.service_id}>
+                    <div className="sc-icon-disc">
+                      <Coffee size={22} />
+                    </div>
+                    <div>
+                      <h3>{s.name}</h3>
+                      <p>{s.description}</p>
+                      <strong>{money(s.price)}</strong>
+                    </div>
+                    <div className="sc-counter">
+                      <button
+                        aria-label={"Remove " + s.name}
+                        disabled={!quantities[s.service_id]}
+                        onClick={() =>
+                          setQuantities((q) => ({
+                            ...q,
+                            [s.service_id]: Math.max(
+                              0,
+                              (q[s.service_id] || 0) - 1,
+                            ),
+                          }))
+                        }
+                      >
+                        −
+                      </button>
+                      <output aria-label={s.name + " quantity"}>
+                        {quantities[s.service_id] || 0}
+                      </output>
+                      <button
+                        aria-label={"Add " + s.name}
+                        disabled={quantities[s.service_id] >= 99}
+                        onClick={() =>
+                          setQuantities((q) => ({
+                            ...q,
+                            [s.service_id]: (q[s.service_id] || 0) + 1,
+                          }))
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {services.data?.length === 0 && (
+                  <p className="sc-muted">No add-ons right now.</p>
+                )}
+              </Feedback>
+              <div className="sc-actions">
+                <button
+                  className="sc-button sc-secondary"
+                  onClick={() => setStep(1)}
+                >
+                  Back
+                </button>
+                <button className="sc-button" onClick={() => setStep(3)}>
+                  Review reservation <ArrowRight size={16} />
+                </button>
+              </div>
+            </>
+          )}
+          {step === 3 && (
+            <form onSubmit={submit}>
+              <p className="sc-eyebrow">ONE LAST LOOK</p>
+              <h2>Their time, well spent.</h2>
+              <div className="sc-review">
+                <img src={zoneImage(selectedZone?.name)} alt="" />
+                <div>
+                  <h3>{selectedZone?.name}</h3>
+                  <p>Seat {seat?.seat_number}</p>
+                  <p>
+                    {date} · {start} – {end}
+                  </p>
+                  <p>{Math.max(0, duration || 0)} hours · Dhaka time</p>
+                </div>
+              </div>
+              <h3>Your add-ons</h3>
+              {addons.length ? (
+                addons.map((s) => (
+                  <p className="sc-spread" key={s.service_id}>
+                    <span>
+                      {s.name} × {quantities[s.service_id]}
+                    </span>
+                    <span>
+                      {money(Number(s.price) * quantities[s.service_id])}
+                    </span>
+                  </p>
+                ))
+              ) : (
+                <p className="sc-muted">Just the seat. A little simplicity.</p>
+              )}
+              <div className="sc-notice">
+                <strong>Payment comes next</strong>
+                <p>
+                  The booking stays pending until cash is recorded or a bKash
+                  payment is approved. Collect payment under Bookings.
+                </p>
+                <p>
+                  The total shown is an estimate based on current rates; the
+                  final total is calculated after reservation.
+                </p>
+              </div>
+              {error && (
+                <p className="sc-error" role="alert">
+                  {error}
+                </p>
+              )}
+              <div className="sc-actions">
+                <button
+                  className="sc-button sc-secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setStep(2)}
+                >
+                  Back
+                </button>
+                <button className="sc-button" disabled={busy}>
+                  {busy ? "Saving…" : "Create reservation"}
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+        <aside className="sc-card sc-summary">
+          <p className="sc-eyebrow">AT THE DESK</p>
+          <h2>This session</h2>
+          <div className="sc-summary-art">
+            <img src={zoneImage(selectedZone?.name)} alt="" />
           </div>
-        )}
-        <hr />
-        <h3>Visit details</h3>
-        <p className="sc-small">All times are in Dhaka time.</p>
-        <div className="staff-form-grid">
-          <Field
-            label="Date"
-            type="date"
-            min={today()}
-            value={date}
-            onChange={(e) => changeTime(setDate, e.target.value)}
-            required
-          />
-          <Field
-            label="Start"
-            type="time"
-            value={start}
-            onChange={(e) => changeTime(setStart, e.target.value)}
-            required
-          />
-          <Field
-            label="End"
-            type="time"
-            value={end}
-            onChange={(e) => changeTime(setEnd, e.target.value)}
-            required
-          />
-        </div>
-        <button
-          type="button"
-          className="sc-button sc-secondary"
-          disabled={busy || !date || start >= end}
-          onClick={findSeats}
-        >
-          Find available seats
-        </button>
-        {seats && (
-          <Field label="Available seat">
-            <select
-              required
-              value={seat}
-              onChange={(e) => setSeat(e.target.value)}
-            >
-              <option value="">
-                {seats.length
-                  ? "Choose a seat"
-                  : "No seats available for this time"}
-              </option>
-              {seats.map((s) => (
-                <option key={s.seat_id} value={s.seat_id}>
-                  {s.zone_name} · {s.seat_number} · {money(s.price_per_hour)}/hour
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-        <hr />
-        <h3>Café add-ons</h3>
-        <Feedback {...services}>
-          <div className="staff-form-grid">
-            {services.data?.map((s) => (
-              <Field
-                key={s.service_id}
-                label={`${s.name} · ${money(s.price)}`}
-                type="number"
-                min={0}
-                max={100}
-                value={quantities[s.service_id] || 0}
-                onChange={(e) =>
-                  setQuantities({ ...quantities, [s.service_id]: e.target.value })
-                }
-              />
-            ))}
-          </div>
-        </Feedback>
-        {error && (
-          <p className="sc-error" role="alert">
-            {error}
+          <h3>{selectedZone?.name || "A seat for every visitor"}</h3>
+          <p className="sc-muted">
+            {seat
+              ? "Seat " + seat.seat_number
+              : "Pick a seat after choosing a time"}
           </p>
-        )}
-        <button className="sc-button" disabled={busy || !seat}>
-          {busy ? "Saving…" : "Create reservation"}
-        </button>
+          <hr />
+          <p className="sc-spread">
+            <span>Date</span>
+            <span>{date}</span>
+          </p>
+          <p className="sc-spread">
+            <span>Time</span>
+            <span>
+              {start} – {end}
+            </span>
+          </p>
+          <p className="sc-spread">
+            <span>Seat · {Math.max(0, duration || 0)} hours</span>
+            <span>{money(estimatedBase)}</span>
+          </p>
+          <p className="sc-spread">
+            <span>Add-ons</span>
+            <span>{money(estimatedServices)}</span>
+          </p>
+          <hr />
+          <p className="sc-spread sc-total">
+            <span>Estimated total</span>
+            <strong>{money(estimatedBase + estimatedServices)}</strong>
+          </p>
+          <p className="sc-small">Final amount calculated after reservation.</p>
+          <div className="sc-summary-foot">
+            <Coffee size={18} /> A seat. A sip. A fresh start.
+          </div>
+        </aside>
       </div>
-    </form>
+    </>
   );
 }
 
