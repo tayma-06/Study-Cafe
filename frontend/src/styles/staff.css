@@ -1,90 +1,11 @@
-/* Staff pages use the same colors, typography, and controls as the customer pages. */
-.staff-app {
-  display: flex;
-  min-height: 100vh;
-}
-.staff-sidebar {
-  background: #3b2215;
-  color: #f8edd7;
-  width: 252px;
-  flex-shrink: 0;
-  padding: 34px 20px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-.staff-sidebar .sc-brand {
-  color: #f8edd7;
-  font-size: 25px;
-  padding: 0 12px;
-}
-.staff-role {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: #cfb88f;
-  margin: 14px 12px 40px;
-}
-.staff-sidebar nav {
-  display: grid;
-  gap: 7px;
-}
-.staff-sidebar button {
-  display: flex;
+/* Staff workspace uses the same layout, colors, and controls as the customer pages. */
+.sc-tabs button {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  text-align: left;
-  padding: 13px 14px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #e7d6bd;
+  gap: 8px;
 }
-.staff-sidebar button:hover,
-.staff-sidebar button.is-active {
-  background: #785332;
-  color: #fff8ed;
-}
-.staff-sidebar-bottom {
-  margin-top: auto;
-  padding-top: 50px;
-  display: grid;
-  gap: 12px;
-}
-.staff-sidebar-bottom a {
-  color: #e7d6bd;
-  padding: 12px;
-  text-decoration: none;
-  font-size: 14px;
-}
-.staff-count {
-  margin-left: auto;
-  background: #f4dfb9;
-  color: #3b2215;
-  border-radius: 20px;
-  padding: 0 7px;
-  font-size: 12px;
-}
-.staff-main {
-  flex: 1;
-  min-width: 0;
-}
-.staff-topbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 24px 38px;
-  border-bottom: 1px solid #deccb0;
-  background: #fffaf0;
-  font-size: 14px;
-}
-.staff-content {
-  padding: 34px 38px 64px;
-  max-width: 1480px;
-  margin: auto;
-}
-.staff-content h1 {
-  font-size: 35px;
-  margin-bottom: 0;
+.sc-tabs .sc-badge {
+  margin-left: 2px;
 }
 .staff-section-heading {
   display: flex;
@@ -234,13 +155,6 @@
   color: #853e30;
 }
 @media (max-width: 1100px) {
-  .staff-sidebar {
-    width: 210px;
-    padding: 28px 12px;
-  }
-  .staff-content {
-    padding: 26px 22px;
-  }
   .staff-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -248,43 +162,15 @@
     width: 30%;
   }
 }
-@media (max-width: 720px) {
-  .staff-app {
-    display: block;
-  }
-  .staff-sidebar {
-    width: 100%;
-    min-height: auto;
-    padding: 20px 16px;
-  }
-  .staff-role {
-    margin: 8px 12px 18px;
-  }
-  .staff-sidebar nav {
-    display: flex;
-    overflow-x: auto;
-    gap: 6px;
-  }
-  .staff-sidebar nav button {
-    white-space: nowrap;
-  }
-  .staff-sidebar-bottom {
-    padding: 12px 0 0;
-    display: flex;
-    justify-content: space-between;
-  }
-  .staff-content {
-    padding: 24px 16px;
-  }
-  .staff-topbar {
-    padding: 16px;
-  }
+@media (max-width: 800px) {
   .staff-welcome {
     padding: 22px;
   }
   .staff-welcome img {
     display: none;
   }
+}
+@media (max-width: 720px) {
   .staff-form-grid {
     grid-template-columns: 1fr;
   }

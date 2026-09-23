@@ -194,6 +194,10 @@ export default function Login({ register = false }) {
                 <details className="sc-help">
                   <summary>Need help signing in?</summary>
                   <p>
+                    Admin and reception staff sign in with their café work
+                    email.
+                  </p>
+                  <p>
                     Please speak with the café reception if you have forgotten
                     your password. Online password reset is not available yet.
                   </p>

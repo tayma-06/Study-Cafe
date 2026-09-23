@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   Coffee,
   LayoutDashboard,
@@ -7,19 +6,19 @@ import {
   CreditCard,
   Users,
   Armchair,
-  LogOut,
   Plus,
   RefreshCw,
 } from "lucide-react";
 import {
   Badge,
   Feedback,
+  Heading,
+  Layout,
   Modal,
   useLoad,
-  useSession,
 } from "../components/CustomerUI";
 import PaymentCheckout from "../components/PaymentCheckout";
-import { api, post, saveSession } from "../services/api";
+import { api, post } from "../services/api";
 import { money, slotLabel, today } from "../utils/customer";
 import receptionArt from "../assets/illustrations/reception.png";
 import "../styles/staff.css";
@@ -1010,7 +1009,6 @@ function Management({ kind }) {
 }
 
 export default function StaffDashboard({ admin = false }) {
-  const session = useSession();
   const [tab, setTab] = useState("overview");
   const summary = useLoad("/staff/summary");
   const bookings = useLoad("/staff/bookings");
@@ -1020,7 +1018,7 @@ export default function StaffDashboard({ admin = false }) {
     bookings.retry();
     payments.retry();
   }
-  const nav = [
+  const tabs = [
     ["overview", "Overview", LayoutDashboard],
     ["new", "Book a visit", Plus],
     ["bookings", "Bookings", CalendarDays],
@@ -1034,140 +1032,121 @@ export default function StaffDashboard({ admin = false }) {
         ]
       : []),
   ];
+  const activeTab = tabs.find(([key]) => key === tab)?.[1];
   return (
-    <div className="sc-app staff-app">
-      <aside className="staff-sidebar">
-        <Link className="sc-brand" to="/">
-          <Coffee />
-          Study Café
-        </Link>
-        <p className="staff-role">
-          {admin ? "ADMINISTRATION" : "RECEPTION DESK"}
-        </p>
-        <nav aria-label="Staff navigation">
-          {nav.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              className={key === tab ? "is-active" : ""}
-              aria-current={key === tab ? "page" : undefined}
-              onClick={() => setTab(key)}
-            >
-              <Icon size={18} />
-              {label}
-              {key === "payments" &&
-                Number(summary.data?.pending_payments) > 0 && (
-                  <span className="staff-count">
-                    {summary.data.pending_payments}
-                  </span>
-                )}
-            </button>
-          ))}
-        </nav>
-        <div className="staff-sidebar-bottom">
-          <Link to="/">View café website →</Link>
-          <button onClick={() => saveSession(null)}>
-            <LogOut size={17} />
-            Log out
+    <Layout>
+      <div className="sc-heading-row">
+        <Heading
+          eyebrow={admin ? "ADMINISTRATION" : "RECEPTION DESK"}
+          title={activeTab}
+        >
+          {admin
+            ? "Half the work, twice the calm—customers, bookings, and prices in one place."
+            : "Book visits, record payments, and keep the café flowing."}
+        </Heading>
+        <button className="sc-button sc-secondary" onClick={refresh}>
+          <RefreshCw size={16} />
+          Refresh
+        </button>
+      </div>
+      <div className="sc-tabs" aria-label="Workspace navigation">
+        {tabs.map(([key, label, Icon]) => (
+          <button
+            key={key}
+            aria-pressed={tab === key}
+            className={tab === key ? "active" : ""}
+            onClick={() => setTab(key)}
+          >
+            <Icon size={16} />
+            {label}
+            {key === "payments" &&
+              Number(summary.data?.pending_payments) > 0 && (
+                <span className="sc-badge sc-status-confirmed">
+                  {summary.data.pending_payments}
+                </span>
+              )}
           </button>
-        </div>
-      </aside>
-      <main className="staff-main">
-        <header className="staff-topbar">
-          <span>{admin ? "Admin workspace" : "Reception workspace"}</span>
-          <span>{session?.name}</span>
-        </header>
-        <div className="staff-content">
-          <div className="staff-section-heading">
+        ))}
+      </div>
+      {tab === "overview" && (
+        <>
+          <section className="staff-welcome">
             <div>
-              <p className="sc-eyebrow">A LITTLE CARE. A BETTER VISIT.</p>
-              <h1>{nav.find(([key]) => key === tab)?.[1]}</h1>
+              <p className="sc-eyebrow">WELCOME BACK</p>
+              <h2>
+                Keep the café running
+                <br />
+                as calmly as it feels.
+              </h2>
+              <p>
+                Bookings, visitors, and the little details—all in one place.
+              </p>
+              <button className="sc-button" onClick={() => setTab("new")}>
+                <Plus size={16} />
+                Book a visit
+              </button>
             </div>
-            <button className="sc-button sc-secondary" onClick={refresh}>
-              <RefreshCw size={16} />
-              Refresh
+            <img
+              src={receptionArt}
+              alt="Illustration of the Study Café reception"
+            />
+          </section>
+          <Feedback {...summary}>
+            <div className="staff-stats">
+              {[
+                ["Total bookings", summary.data?.total_bookings],
+                [
+                  "Seat inventory",
+                  `${summary.data?.total_seats ?? 0} seats`,
+                ],
+                ["Visits today", summary.data?.today_bookings],
+                ["Recorded today", money(summary.data?.today_revenue)],
+              ].map(([label, value]) => (
+                <div className="sc-card" key={label}>
+                  <p>{label}</p>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+            <p className="sc-small">
+              Recorded totals include approved demo payments and recorded cash.
+              Today follows Dhaka time.
+            </p>
+          </Feedback>
+          <div className="staff-section-heading">
+            <h2>Recent visits</h2>
+            <button
+              className="sc-button sc-secondary"
+              onClick={() => setTab("payments")}
+            >
+              {summary.data?.pending_payments || 0} awaiting payment review
             </button>
           </div>
-          {tab === "overview" && (
-            <>
-              <section className="staff-welcome">
-                <div>
-                  <p className="sc-eyebrow">WELCOME BACK</p>
-                  <h2>
-                    Keep the café running
-                    <br />
-                    as calmly as it feels.
-                  </h2>
-                  <p>
-                    Bookings, visitors, and the little details—all in one place.
-                  </p>
-                  <button className="sc-button" onClick={() => setTab("new")}>
-                    <Plus size={16} />
-                    Book a visit
-                  </button>
-                </div>
-                <img
-                  src={receptionArt}
-                  alt="Illustration of the Study Café reception"
-                />
-              </section>
-              <Feedback {...summary}>
-                <div className="staff-stats">
-                  {[
-                    ["Total bookings", summary.data?.total_bookings],
-                    [
-                      "Seat inventory",
-                      `${summary.data?.total_seats ?? 0} seats`,
-                    ],
-                    ["Visits today", summary.data?.today_bookings],
-                    ["Recorded today", money(summary.data?.today_revenue)],
-                  ].map(([label, value]) => (
-                    <div className="sc-card" key={label}>
-                      <p>{label}</p>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
-                <p className="sc-small">
-                  Recorded totals include approved demo payments and recorded
-                  cash. Today follows Dhaka time.
-                </p>
-              </Feedback>
-              <div className="staff-section-heading">
-                <h2>Recent visits</h2>
-                <button
-                  className="sc-button sc-secondary"
-                  onClick={() => setTab("payments")}
-                >
-                  {summary.data?.pending_payments || 0} awaiting payment review
-                </button>
-              </div>
-              <BookingList
-                state={{ ...bookings, data: bookings.data?.slice(0, 6) }}
-                onSaved={refresh}
-              />
-            </>
-          )}
-          {tab === "new" && <DeskBooking onSaved={refresh} />}
-          {tab === "bookings" && (
-            <>
-              <p className="sc-small">Showing the most recent 500 bookings.</p>
-              <BookingList state={bookings} onSaved={refresh} />
-            </>
-          )}
-          {tab === "payments" && (
-            <>
-              <p className="sc-small">
-                Showing the most recent 500 payment requests.
-              </p>
-              <Payments state={payments} onSaved={refresh} />
-            </>
-          )}
-          {tab === "customers" && <Accounts admin={admin} onSaved={refresh} />}
-          {admin && ["zones", "seats", "services"].includes(tab) && (
-            <Management kind={tab} key={tab} />
-          )}
-        </div>
-      </main>
-    </div>
+          <BookingList
+            state={{ ...bookings, data: bookings.data?.slice(0, 6) }}
+            onSaved={refresh}
+          />
+        </>
+      )}
+      {tab === "new" && <DeskBooking onSaved={refresh} />}
+      {tab === "bookings" && (
+        <>
+          <p className="sc-small">Showing the most recent 500 bookings.</p>
+          <BookingList state={bookings} onSaved={refresh} />
+        </>
+      )}
+      {tab === "payments" && (
+        <>
+          <p className="sc-small">
+            Showing the most recent 500 payment requests.
+          </p>
+          <Payments state={payments} onSaved={refresh} />
+        </>
+      )}
+      {tab === "customers" && <Accounts admin={admin} onSaved={refresh} />}
+      {admin && ["zones", "seats", "services"].includes(tab) && (
+        <Management kind={tab} key={tab} />
+      )}
+    </Layout>
   );
 }
