@@ -15,9 +15,14 @@ if ALGORITHM != 'HS256' or EXPIRE_MINUTES <= 0:
     raise RuntimeError('Use JWT_ALGORITHM=HS256 and positive JWT_EXPIRE_MINUTES')
 bearer_scheme = HTTPBearer(auto_error=False)
 
+# This code provides authentication utilities for the Study Café API. 
+# It includes functions to create and decode JWT access tokens, retrieve the current user from the token, and enforce admin access for certain endpoints. 
+# The `unauthorized` function raises an HTTP 401 error for invalid or expired tokens, while `create_access_token` generates a new JWT for a given user ID and role. 
+# The `decode_access_token` function validates and decodes the token, ensuring it contains valid claims. The `get_current_user` function retrieves the user information based on the token, and `require_admin` checks if the current user has admin privileges.
 def unauthorized():
     return HTTPException(401, 'Invalid or expired token', headers={'WWW-Authenticate': 'Bearer'})
 
+# This code provides authentication utilities for the Study Café API.
 def create_access_token(user_id: int, role: str) -> str:
     if user_id <= 0 or role not in ('admin', 'customer'):
         raise ValueError('Invalid user claims')
@@ -25,6 +30,7 @@ def create_access_token(user_id: int, role: str) -> str:
     return jwt.encode({'sub': str(user_id), 'role': role, 'iat': now,
                        'exp': now + timedelta(minutes=EXPIRE_MINUTES)}, SECRET_KEY, algorithm=ALGORITHM)
 
+# This code provides authentication utilities for the Study Café API.
 def decode_access_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM],
@@ -38,17 +44,18 @@ def decode_access_token(token: str) -> dict:
     except (JWTError, ValueError, TypeError):
         raise unauthorized() from None
 
+# This code provides authentication utilities for the Study Café API.
 def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)) -> dict:
     if credentials is None or credentials.scheme.lower() != 'bearer':
         raise unauthorized()
     payload = decode_access_token(credentials.credentials)
-    # Read the current role so deleted users and demoted admins lose access.
     from models import get_user_by_id
     user = get_user_by_id(int(payload['sub']))
     if user is None:
         raise unauthorized()
     return {'user_id': user[0], 'role': user[3]}
 
+# This code provides authentication utilities for the Study Café API.
 def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
     if current_user['role'] != 'admin':
         raise HTTPException(403, 'Admin access required')
