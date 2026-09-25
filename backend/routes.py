@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 import bcrypt
 from psycopg import sql
-from psycopg.errors import UniqueViolation
+from psycopg.errors import UniqueViolation, ExclusionViolation, CheckViolation, ForeignKeyViolation, RaiseException
 from psycopg.rows import dict_row
 
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -75,6 +75,27 @@ from .schemas import (
 )
 
 router = APIRouter()
+
+def handle_db_error(e: Exception) -> HTTPException:
+    """Convert database errors to user-friendly messages."""
+    if isinstance(e, (UniqueViolation, ExclusionViolation)):
+        return HTTPException(status_code=409, detail="Booking conflicts with existing reservation")
+    if isinstance(e, CheckViolation):
+        return HTTPException(status_code=400, detail="Invalid booking time or data")
+    if isinstance(e, ForeignKeyViolation):
+        return HTTPException(status_code=400, detail="Referenced record not found")
+    if isinstance(e, RaiseException):
+        msg = str(e)
+        if "Check-in only allowed" in msg:
+            return HTTPException(status_code=400, detail=msg)
+        if "Services cannot change" in msg:
+            return HTTPException(status_code=400, detail="Cannot modify services after payment started")
+        if "Reject pending payments" in msg:
+            return HTTPException(status_code=400, detail="Cannot cancel while payment is pending")
+        if "booking amount has changed" in msg:
+            return HTTPException(status_code=409, detail="Booking amount changed, please refresh")
+        return HTTPException(status_code=400, detail="Operation not allowed")
+    return HTTPException(status_code=400, detail="Operation failed")
 
 # Get all users API endpoint (admin only)
 @router.get("/users", response_model=list[UserResponse])
@@ -476,17 +497,15 @@ def cancel_booking_route(
             detail=str(e)
         )
 
-# Check-in a booking API endpoint (owner or admin only)
+# Check-in a booking API endpoint (staff only)
 @router.post("/bookings/{booking_id}/check-in")
 def check_in_booking_route(
     booking_id: Decimal,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_staff),
 ):
     booking = get_booking_by_id(booking_id)
     if booking is None:
         raise HTTPException(404, "Booking not found")
-    if current_user["role"] not in ("admin", "receptionist") and booking[1] != current_user["user_id"]:
-        raise HTTPException(status_code=403, detail="Not your booking")
     try:
         check_in_booking(booking_id)
         return {
@@ -494,12 +513,9 @@ def check_in_booking_route(
             "booking_id": booking_id
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise handle_db_error(e)
 
-# Check-out a booking API endpoint (owner or admin only)
+# Check-out a booking API endpoint (staff only)
 @router.post("/bookings/{booking_id}/check-out")
 def check_out_booking_route(
     booking_id: Decimal,
