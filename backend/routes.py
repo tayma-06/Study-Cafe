@@ -289,10 +289,7 @@ def create_booking_route(
             booking.quantities,
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e),
-        )
+        raise handle_db_error(e)
     return {
         "booking_id": new_booking[0],
         "user_id": new_booking[1],
@@ -390,10 +387,7 @@ def add_booking_services(
             "booking_id": booking_id
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise handle_db_error(e)
 
 # Get payment information for a specific booking API endpoint (owner or admin only)
 @router.get(
@@ -469,10 +463,7 @@ def get_booking_price(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise handle_db_error(e)
 
 # Cancel a booking API endpoint (owner or admin only)
 @router.post("/bookings/{booking_id}/cancel")
@@ -492,10 +483,7 @@ def cancel_booking_route(
             "booking_id": booking_id
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise handle_db_error(e)
 
 # Check-in a booking API endpoint (staff only)
 @router.post("/bookings/{booking_id}/check-in")
@@ -533,7 +521,7 @@ def check_out_booking_route(
             "booking_id": booking_id
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise handle_db_error(e)
 
 # Get available seats for a specific date and time range API endpoint (public)
 @router.get("/availability", response_model=list[AvailableSeatResponse])
@@ -626,7 +614,7 @@ def staff_bookings(user=Depends(require_staff)):
                        p.status AS payment_status, p.method, p.paid_at, b.created_by
                        FROM bookings b LEFT JOIN users u USING(user_id) JOIN seats s USING(seat_id)
                        JOIN zones z USING(zone_id) LEFT JOIN payments p USING(booking_id)
-                       ORDER BY b.created_at DESC LIMIT 500""")
+                       ORDER BY b.created_at DESC LIMIT 100""")
         return cur.fetchall()
 
 # Retrieve dashboard totals using the café's local date.
@@ -665,7 +653,7 @@ def payment_requests(user=Depends(get_current_user)):
         cur.execute("""SELECT r.*, b.booking_id::text AS booking_id, COALESCE(u.name,b.guest_name) AS customer_name,
                        reviewer.name AS reviewer_name FROM payment_requests r JOIN bookings b USING(booking_id)
                        LEFT JOIN users u ON u.user_id=b.user_id LEFT JOIN users reviewer ON reviewer.user_id=r.reviewed_by
-                       WHERE (%s OR b.user_id=%s) ORDER BY r.created_at DESC LIMIT 500""", (user["role"] in ("admin", "receptionist"), user["user_id"]))
+                       WHERE (%s OR b.user_id=%s) ORDER BY r.created_at DESC LIMIT 100""", (user["role"] in ("admin", "receptionist"), user["user_id"]))
         return cur.fetchall()
 
 # Approve or reject a simulated transaction API endpoint (staff only).

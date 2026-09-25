@@ -403,8 +403,8 @@ export default function AdminDashboard() {
           <BookingList state={{ ...bookings, data: bookings.data?.slice(0, 6) }} onSaved={refresh} />
         </>
       )}
-      {tab === "bookings" && <><p className="sc-small">Showing the most recent 500 bookings.</p><BookingList state={bookings} onSaved={refresh} /></>}
-      {tab === "payments" && <><p className="sc-small">Showing the most recent 500 payment requests.</p><Payments state={payments} onSaved={refresh} /></>}
+      {tab === "bookings" && <><p className="sc-small">Showing the most recent 100 bookings.</p><BookingList state={bookings} onSaved={refresh} /></>}
+      {tab === "payments" && <><p className="sc-small">Showing the most recent 100 payment requests.</p><Payments state={payments} onSaved={refresh} /></>}
       {tab === "customers" && <Accounts onSaved={refresh} />}
       {tab === "management" && (
         <>
