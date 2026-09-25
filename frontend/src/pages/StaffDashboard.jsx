@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Plus,
   RefreshCw,
-  SlidersHorizontal,
   Users,
 } from "lucide-react";
 import {
