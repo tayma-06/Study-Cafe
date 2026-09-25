@@ -49,7 +49,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(
     if credentials is None or credentials.scheme.lower() != 'bearer':
         raise unauthorized()
     payload = decode_access_token(credentials.credentials)
-    from models import get_user_by_id
+    from .models import get_user_by_id
     user = get_user_by_id(int(payload['sub']))
     if user is None:
         raise unauthorized()
