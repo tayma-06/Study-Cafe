@@ -1354,9 +1354,8 @@ function Management({ kind }) {
   );
 }
 
-export default function StaffDashboard({ admin = false }) {
+export default function StaffDashboard() {
   const [tab, setTab] = useState("overview");
-  const [manage, setManage] = useState("zones");
   const summary = useLoad("/staff/summary");
   const bookings = useLoad("/staff/bookings");
   const payments = useLoad("/payment-requests");
@@ -1370,21 +1369,13 @@ export default function StaffDashboard({ admin = false }) {
     ["new", "Book a visit", Plus],
     ["bookings", "Bookings", CalendarDays],
     ["payments", "Payment approvals", CreditCard],
-    ["customers", admin ? "Customers & staff" : "Customers", Users],
-    ...(admin ? [["management", "Café management", SlidersHorizontal]] : []),
+    ["customers", "Customers", Users],
   ];
   const activeTab = tabs.find(([key]) => key === tab)?.[1];
   return (
     <Layout>
       <div className="sc-heading-row">
-        <Heading
-          eyebrow={admin ? "ADMINISTRATION" : "RECEPTION DESK"}
-          title={activeTab}
-        >
-          {admin
-            ? "Half the work, twice the calm—customers, bookings, and prices in one place."
-            : "Book visits, record payments, and keep the café flowing."}
-        </Heading>
+        <Heading eyebrow="RECEPTION DESK" title={activeTab}>Book visits, record payments, and keep the café flowing.</Heading>
         <button className="sc-button sc-secondary" onClick={refresh}>
           <RefreshCw size={16} />
           Refresh
@@ -1486,36 +1477,7 @@ export default function StaffDashboard({ admin = false }) {
           <Payments state={payments} onSaved={refresh} />
         </>
       )}
-      {tab === "customers" && <Accounts admin={admin} onSaved={refresh} />}
-      {admin && tab === "management" && (
-        <>
-          <div
-            className="staff-choice"
-            role="group"
-            aria-label="Management section"
-          >
-            {(
-              [
-                ["zones", "Zones & pricing"],
-                ["seats", "Seats & availability"],
-                ["services", "Café services"],
-              ]
-            ).map(([value, label]) => (
-              <button
-                type="button"
-                key={value}
-                className={
-                  manage === value ? "sc-button" : "sc-button sc-secondary"
-                }
-                onClick={() => setManage(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <Management kind={manage} key={manage} />
-        </>
-      )}
+      {tab === "customers" && <Accounts admin={false} onSaved={refresh} />}
     </Layout>
   );
 }
