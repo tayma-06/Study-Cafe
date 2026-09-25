@@ -296,3 +296,124 @@ Study-Cafe/
 
 * Ensure the virtual environment is activated in each terminal session
 * Run `which python` or `where python` to verify the correct interpreter
+
+## Render Deployment
+
+### Quick Deploy (using render.yaml)
+
+1. Push your code to GitHub
+2. Go to [Render Dashboard](https://dashboard.render.com)
+3. Click **New** → **Blueprint**
+4. Connect your GitHub repository
+5. Render will detect `render.yaml` and create:
+   - PostgreSQL database (`study-cafe-db`)
+   - Backend web service (`study-cafe-backend`)
+   - Frontend web service (`study-cafe-frontend`)
+   - Database initialization job (`study-cafe-db-init`)
+
+### Manual Setup
+
+If you prefer manual configuration:
+
+#### 1. Create PostgreSQL Database
+
+1. In Render Dashboard, click **New** → **PostgreSQL**
+2. Name: `study-cafe-db`
+3. Database: `study_cafe`
+4. User: `study_cafe_user`
+5. Plan: Free (or paid)
+6. Copy the **Internal Database URL** (looks like `postgresql://user:pass@host:port/db`)
+
+#### 2. Deploy Backend
+
+1. Click **New** → **Web Service**
+2. Connect your GitHub repo
+3. Settings:
+   - **Name**: `study-cafe-backend`
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Root Directory**: `backend` (if repo root has backend folder)
+4. Environment Variables:
+   ```
+   DATABASE_URL=<paste Internal Database URL from step 1>
+   JWT_SECRET_KEY=<generate a long random string>
+   JWT_ALGORITHM=HS256
+   JWT_EXPIRE_MINUTES=1440
+   STAFF_EMAIL_DOMAINS=studycafe.example
+   CORS_ORIGINS=https://study-cafe-frontend.onrender.com
+   ```
+
+#### 3. Initialize Database Schema
+
+After backend deploys, run the database initialization:
+
+1. In Render Dashboard, go to your backend service
+2. Click **Shell** tab
+3. Run: `python init_db.py`
+
+Or create a one-off job:
+1. **New** → **Job** → **Background Worker**
+2. **Build Command**: `pip install -r requirements.txt`
+3. **Start Command**: `python init_db.py`
+4. Add `DATABASE_URL` environment variable (same as backend)
+
+#### 4. Deploy Frontend
+
+1. Click **New** → **Static Site** (or Web Service for SPA)
+2. Settings:
+   - **Name**: `study-cafe-frontend`
+   - **Build Command**: `cd frontend && npm install && npm run build`
+   - **Publish Directory**: `frontend/dist` (for Static Site)
+   - **Start Command**: `cd frontend && npm start -- -l $PORT` (for Web Service)
+3. Environment Variables:
+   ```
+   VITE_API_BASE_URL=https://study-cafe-backend.onrender.com
+   ```
+
+#### 5. Update CORS
+
+After frontend deploys, update the backend's `CORS_ORIGINS` to include your frontend URL:
+```
+CORS_ORIGINS=https://study-cafe-frontend.onrender.com
+```
+
+Then redeploy the backend.
+
+### Environment Variables Reference
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string (provided by Render) | Yes |
+| `JWT_SECRET_KEY` | Secret for signing JWT tokens (generate with `openssl rand -hex 32`) | Yes |
+| `JWT_ALGORITHM` | JWT algorithm (default: HS256) | No |
+| `JWT_EXPIRE_MINUTES` | Token expiry in minutes (default: 1440) | No |
+| `STAFF_EMAIL_DOMAINS` | Allowed domains for receptionist work emails | Yes |
+| `CORS_ORIGINS` | Comma-separated frontend origins | No (defaults to localhost) |
+| `VITE_API_BASE_URL` | Backend API URL for frontend | Yes |
+
+### Common Render Issues
+
+#### Build Fails
+- Check build logs for missing dependencies
+- Ensure `requirements.txt` has all packages
+- Python version: specify in `runtime.txt` if needed (`python-3.11.0`)
+
+#### Database Connection Failed
+- Verify `DATABASE_URL` is set correctly
+- Use **Internal Database URL** (not external) for services in same region
+- Check database is in **Available** state
+
+#### CORS Errors
+- Add frontend URL to backend's `CORS_ORIGINS`
+- Redeploy backend after changing CORS
+
+#### Frontend Shows Blank Page
+- Ensure `VITE_API_BASE_URL` is set correctly
+- Check browser console for API errors
+- Verify backend `/docs` endpoint works
+
+#### Database Not Initialized
+- Run `python init_db.py` in backend shell or as a job
+- Check job logs for SQL errors
+- Verify all SQL files exist in `database/` folder

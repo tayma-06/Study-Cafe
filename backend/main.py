@@ -2,7 +2,7 @@ import logging
 import os
 import psycopg
 from fastapi import FastAPI, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .auth import require_admin
@@ -19,8 +19,10 @@ app.add_middleware(CORSMiddleware,
     allow_credentials=True, allow_methods=['GET', 'POST', 'OPTIONS'], allow_headers=['Authorization', 'Content-Type'])
 app.include_router(router)
 
-# Mount the frontend static files
-app.mount("/", StaticFiles(directory="backend_static", html=True), name="frontend")
+# Mount frontend static files if built (for Render deployment)
+frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.isdir(frontend_dist):
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 
 @app.exception_handler(psycopg.Error)
 async def database_error(request, exc):

@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: study-cafe-backend
+    runtime: python
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: study-cafe-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "1440"
+      - key: STAFF_EMAIL_DOMAINS
+        value: studycafe.example
+      - key: CORS_ORIGINS
+        value: https://study-cafe-po8m.onrender.com
+    autoDeploy: true
+
+  - type: web
+    name: study-cafe-frontend
+    runtime: node
+    buildCommand: |
+      cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start -- -l $PORT
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://study-cafe-backend.onrender.com
+    autoDeploy: true
+
+  - type: job
+    name: study-cafe-db-init
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python init_db.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: study-cafe-db
+          property: connectionString
+
+databases:
+  - name: study-cafe-db
+    databaseName: study_cafe
+    user: study_cafe_user
+    plan: free
+    ipAllowList: []
