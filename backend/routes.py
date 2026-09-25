@@ -10,8 +10,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from datetime import date, time, datetime
 from typing import Optional
 
-from database import get_connection
-from models import (
+from .database import get_connection
+from .models import (
     create_user,
     get_all_users,
     get_user_by_email,
@@ -39,14 +39,14 @@ from models import (
     complete_payment,
 )
 
-from auth import (
+from .auth import (
     create_access_token,
     get_current_user,
     require_admin,
     require_staff,
 )
 
-from schemas import (
+from .schemas import (
     LoginRequest,
     LoginResponse,
     UserCreate,
