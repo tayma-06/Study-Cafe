@@ -1,7 +1,7 @@
 import bcrypt
 from decimal import Decimal
 
-from database import get_connection
+from .database import get_connection
 from fastapi import HTTPException
 from psycopg.rows import dict_row
 from psycopg.types.range import Range

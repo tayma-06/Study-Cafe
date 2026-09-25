@@ -1,9 +1,9 @@
 import argparse
 from getpass import getpass
 from psycopg.rows import dict_row
-from database import get_connection
-from schemas import UserCreate
-from models import insert_user
+from .database import get_connection
+from .schemas import UserCreate
+from .models import insert_user
 
 # Create the first admin account from the server terminal.
 def main():
