@@ -51,7 +51,7 @@ END;
 $$;
 
 
--- Checking in a booking
+-- Checking in a booking (only allowed at start time ± 15 min grace period)
 CREATE OR REPLACE PROCEDURE check_in_booking(
     p_booking_id bookings.booking_id%TYPE
 )
@@ -59,9 +59,11 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     current_status booking_status;
+    booking_start TIMESTAMPTZ;
+    now_tz TIMESTAMPTZ := CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dhaka';
 BEGIN
-    SELECT status
-    INTO current_status
+    SELECT status, lower(time_slot)
+    INTO current_status, booking_start
     FROM bookings
     WHERE booking_id = p_booking_id;
     IF NOT FOUND THEN
@@ -72,10 +74,17 @@ BEGIN
             'Cannot check in booking with status: %',
             current_status;
     END IF;
+    -- Allow check-in from 15 min before to 15 min after start time
+    IF now_tz < booking_start - INTERVAL '15 minutes'
+       OR now_tz > booking_start + INTERVAL '15 minutes' THEN
+        RAISE EXCEPTION
+            'Check-in only allowed within 15 minutes of start time (start: %, now: %)',
+            booking_start, now_tz;
+    END IF;
     UPDATE bookings
     SET
         status = 'checked_in',
-        checked_in_at = lower(time_slot)
+        checked_in_at = now_tz
     WHERE booking_id = p_booking_id;
 END;
 $$;
