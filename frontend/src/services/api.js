@@ -1,7 +1,4 @@
-const base = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(
-  /\/$/,
-  "",
-);
+const base = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 const key = "study-cafe-session";
 export function getSession() {
   try {

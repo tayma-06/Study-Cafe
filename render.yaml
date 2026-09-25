@@ -29,8 +29,8 @@ services:
       cd frontend && npm install && npm run build
     startCommand: cd frontend && npm start -- -l $PORT
     envVars:
-      - key: VITE_API_BASE_URL
-        value: https://study-cafe-backend.onrender.com
+      - key: VITE_API_URL
+        value: ""
     autoDeploy: true
 
   - type: job
