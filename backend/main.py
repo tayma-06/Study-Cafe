@@ -4,6 +4,7 @@ import psycopg
 from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from auth import require_admin
 from routes import router
 from database import get_connection
@@ -17,6 +18,9 @@ app.add_middleware(CORSMiddleware,
     allow_origins=[s.strip() for s in os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',') if s.strip()],
     allow_credentials=True, allow_methods=['GET', 'POST', 'OPTIONS'], allow_headers=['Authorization', 'Content-Type'])
 app.include_router(router)
+
+# Mount the frontend static files
+app.mount("/", StaticFiles(directory="backend_static", html=True), name="frontend")
 
 @app.exception_handler(psycopg.Error)
 async def database_error(request, exc):
