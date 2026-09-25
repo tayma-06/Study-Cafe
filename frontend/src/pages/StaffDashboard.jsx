@@ -1465,14 +1465,14 @@ export default function StaffDashboard() {
       {tab === "new" && <DeskBooking onSaved={refresh} />}
       {tab === "bookings" && (
         <>
-          <p className="sc-small">Showing the most recent 500 bookings.</p>
+          <p className="sc-small">Showing the most recent 100 bookings.</p>
           <BookingList state={bookings} onSaved={refresh} />
         </>
       )}
       {tab === "payments" && (
         <>
           <p className="sc-small">
-            Showing the most recent 500 payment requests.
+            Showing the most recent 100 payment requests.
           </p>
           <Payments state={payments} onSaved={refresh} />
         </>
