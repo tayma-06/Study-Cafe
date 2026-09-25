@@ -5,9 +5,9 @@ from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from auth import require_admin
-from routes import router
-from database import get_connection
+from .auth import require_admin, current_user
+from .routes import router
+from .database import get_connection
 
 
 # This code sets up a FastAPI application for the Study Café API. 
