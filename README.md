@@ -89,6 +89,7 @@ Study-Cafe/
 * **Frontend** — React application
 * **Database** — PostgreSQL database scripts and database logic
 
+---
 
 <details>
 <summary><strong>API Endpoints</strong></summary>
@@ -164,6 +165,8 @@ Study-Cafe/
 
 </details>
 
+---
+
 <details>
 <summary><strong>Database Schema</strong></summary>
 
@@ -201,7 +204,6 @@ Stores individual study seats.
 * `status` — `seat_status`
 
 Constraint:
-
 ```text
 UNIQUE(zone_id, seat_number)
 ```
@@ -243,7 +245,6 @@ Connects bookings with services.
 * `unit_price` — NUMERIC
 
 Primary Key:
-
 ```text
 (booking_id, service_id)
 ```
@@ -296,11 +297,12 @@ users
 
 </details>
 
+---
+
 <details>
 <summary><strong>Custom Types & Domains</strong></summary>
 
 ### `user_role`
-
 ```text
 admin
 customer
@@ -308,7 +310,6 @@ receptionist
 ```
 
 ### `booking_status`
-
 ```text
 pending
 confirmed
@@ -318,14 +319,12 @@ canceled
 ```
 
 ### `seat_status`
-
 ```text
 available
 unavailable
 ```
 
 ### `payment_status`
-
 ```text
 pending
 completed
@@ -333,7 +332,6 @@ failed
 ```
 
 ### `payment_method`
-
 ```text
 credit_card
 mobile_banking
@@ -343,7 +341,6 @@ cash
 ### `price_breakdown`
 
 Composite type containing:
-
 ```text
 base_price
 service_cost
@@ -351,6 +348,8 @@ total_price
 ```
 
 </details>
+
+---
 
 <details>
 <summary><strong>Database Functions</strong></summary>
@@ -373,6 +372,8 @@ total_price
 
 </details>
 
+---
+
 <details>
 <summary><strong>Stored Procedures</strong></summary>
 
@@ -387,6 +388,8 @@ total_price
 
 </details>
 
+---
+
 <details>
 <summary><strong>Database Views</strong></summary>
 
@@ -399,6 +402,8 @@ total_price
 | `service_usage`   | Service usage, quantities, unit prices, and service totals        |
 
 </details>
+
+---
 
 <details>
 <summary><strong>Database Triggers</strong></summary>
@@ -415,11 +420,12 @@ total_price
 
 </details>
 
+---
+
 <details>
 <summary><strong>Business Rules & Data Integrity</strong></summary>
 
 ### Authentication
-
 * Email addresses must be unique, including across customer login emails and receptionist work emails.
 * Receptionists log in with their café `work_email`; login emails are cross-checked by a trigger.
 * Passwords are stored using bcrypt hashing.
@@ -428,7 +434,6 @@ total_price
 * Admin users have additional management access; receptionists have staff access.
 
 ### Booking
-
 * A booking belongs to a specific user and seat, or to a walk-in guest (guest details required).
 * Bookings use PostgreSQL `TSTZRANGE` for time slots.
 * A seat cannot have overlapping non-canceled bookings (enforced by exclusion constraint).
@@ -439,304 +444,11 @@ total_price
 * Bookings can be canceled.
 
 ### Services
-
 * Services can be attached to bookings.
 * Each booking-service combination is unique.
 * Service quantities and prices are stored with the booking service.
 
 ### Payments
-
-* A booking can have at most one payment.
-* Payment methods are restricted to the defined `payment_method` domain.
-* Payment statuses are restricted to the defined `payment_status` domain.
-* A completed payment can confirm a pending booking.
-* Mobile payments are simulated as `payment_requests` that staff must approve or reject.
-* Services cannot change once a payment request is pending or the booking is paid.
-* Paid bookings require a refund process instead of cancellation.
-</details>
-
-<details>
-<summary><strong>Database Schema</strong></summary>
-
-### Tables
-
-#### `users`
-
-Stores customer, receptionist, and administrator accounts.
-
-* `user_id` — BIGINT, Primary Key
-* `name` — TEXT, NOT NULL
-* `email` — TEXT, UNIQUE, NOT NULL
-* `password` — TEXT, NOT NULL
-* `role` — `user_role`
-* `work_email` — TEXT, staff login email for receptionists
-* `created_at` — TIMESTAMP
-
-#### `zones`
-
-Stores study café zones.
-
-* `zone_id` — SERIAL, Primary Key
-* `name` — TEXT
-* `description` — TEXT
-* `price_per_hour` — NUMERIC
-* `facilities` — TEXT[]
-
-#### `seats`
-
-Stores individual study seats.
-
-* `seat_id` — SERIAL, Primary Key
-* `zone_id` — INT, Foreign Key → `zones`
-* `seat_number` — TEXT
-* `status` — `seat_status`
-
-Constraint:
-
-```text
-UNIQUE(zone_id, seat_number)
-```
-
-#### `bookings`
-
-Stores time-based seat reservations.
-
-* `booking_id` — NUMERIC(12,4), Primary Key
-* `user_id` — BIGINT, Foreign Key → `users` (nullable for guest bookings)
-* `seat_id` — INT, Foreign Key → `seats`
-* `time_slot` — TSTZRANGE
-* `status` — `booking_status`
-* `checked_in_at` — TIMESTAMPTZ
-* `checked_out_at` — TIMESTAMPTZ
-* `guest_name` — TEXT
-* `guest_phone` — TEXT
-* `guest_email` — TEXT
-* `created_by` — BIGINT, Foreign Key → `users` (staff who made the booking)
-* `hourly_rate` — NUMERIC, the price per hour locked at booking time
-* `created_at` — TIMESTAMPTZ
-
-#### `services`
-
-Stores additional café services.
-
-* `service_id` — SERIAL, Primary Key
-* `name` — TEXT
-* `description` — TEXT
-* `price` — NUMERIC
-
-#### `booking_services`
-
-Connects bookings with services.
-
-* `booking_id` — NUMERIC(12,4), Foreign Key → `bookings`
-* `service_id` — INT, Foreign Key → `services`
-* `quantity` — INT
-* `unit_price` — NUMERIC
-
-Primary Key:
-
-```text
-(booking_id, service_id)
-```
-
-#### `payments`
-
-Stores booking payment information.
-
-* `payment_id` — BIGINT, Primary Key
-* `booking_id` — NUMERIC(12,4), Foreign Key → `bookings`, UNIQUE
-* `amount` — NUMERIC
-* `method` — `payment_method`
-* `status` — `payment_status`
-* `received_by` — BIGINT, Foreign Key → `users` (staff who approved/recorded the payment)
-* `paid_at` — TIMESTAMPTZ
-* `created_at` — TIMESTAMPTZ
-
-#### `payment_requests`
-
-Stores simulated bKash transactions awaiting staff approval.
-
-* `transaction_id` — TEXT, Primary Key
-* `booking_id` — NUMERIC(12,4), NOT NULL, Foreign Key → `bookings`
-* `amount` — NUMERIC(10,2), NOT NULL
-* `method` — `payment_method`
-* `provider` — TEXT
-* `phone` — TEXT, NOT NULL
-* `status` — TEXT (`pending`, `approved`, `rejected`)
-* `submitted_by` — BIGINT, NOT NULL, Foreign Key → `users`
-* `reviewed_by` — BIGINT, Foreign Key → `users`
-* `review_note` — TEXT
-* `reviewed_at` — TIMESTAMPTZ
-* `created_at` — TIMESTAMPTZ
-
-Constraint: only one `pending`/`approved` request per booking.
-
-### Relationships
-
-```text
-users
-  │
-  └──< bookings >── seats ──> zones
-          │
-          ├──< booking_services >── services
-          │
-          ├── payments
-          │
-          └──< payment_requests (pending approval) ──> users (reviewer)
-```
-
-</details>
-
-<details>
-<summary><strong>Custom Types & Domains</strong></summary>
-
-### `user_role`
-
-```text
-admin
-customer
-receptionist
-```
-
-### `booking_status`
-
-```text
-pending
-confirmed
-checked_in
-checked_out
-canceled
-```
-
-### `seat_status`
-
-```text
-available
-unavailable
-```
-
-### `payment_status`
-
-```text
-pending
-completed
-failed
-```
-
-### `payment_method`
-
-```text
-credit_card
-mobile_banking
-cash
-```
-
-### `price_breakdown`
-
-Composite type containing:
-
-```text
-base_price
-service_cost
-total_price
-```
-
-</details>
-
-<details>
-<summary><strong>Database Functions</strong></summary>
-
-| Function                    | Purpose                                                             |
-| --------------------------- | ------------------------------------------------------------------- |
-| `generate_user_id()`        | Generates a date-based user ID                                      |
-| `generate_booking_id()`     | Generates a date-based booking ID                                   |
-| `generate_payment_id()`     | Handles payment ID initialization                                   |
-| `calculate_booking_price()` | Calculates the base booking cost                                    |
-| `calculate_service_cost()`  | Calculates the total service cost                                   |
-| `calculate_total_price()`   | Calculates the complete price breakdown                             |
-| `update_booking_status()`   | Updates seat availability based on booking status                   |
-| `update_payment_status()`   | Updates booking status based on payment status                      |
-| `check_seat_availability()` | Checks whether a seat is available for a time slot                  |
-| `get_available_seats()`     | Returns available seats for a requested time slot and optional zone |
-| `check_login_email()`       | Prevents duplicate login emails across customer and staff accounts  |
-| `protect_booking_payment()` | Locks the booked hourly rate and guards cancellations during payment review |
-| `protect_booking_services()` | Blocks service changes once a payment has been submitted            |
-
-</details>
-
-<details>
-<summary><strong>Stored Procedures</strong></summary>
-
-| Procedure                   | Purpose                                                     |
-| --------------------------- | ----------------------------------------------------------- |
-| `create_booking()`          | Creates a booking and adds selected services                |
-| `cancel_booking()`          | Cancels a booking                                           |
-| `check_in_booking()`        | Checks in a confirmed booking                               |
-| `check_out_booking()`       | Checks out a checked-in booking                             |
-| `add_services_to_booking()` | Adds services to an existing booking                        |
-| `create_payment()`          | Creates a payment and updates booking status when completed |
-
-</details>
-
-<details>
-<summary><strong>Database Views</strong></summary>
-
-| View              | Purpose                                                           |
-| ----------------- | ----------------------------------------------------------------- |
-| `user_bookings`   | Customer booking history with seat, zone, and payment information |
-| `available_seats` | Currently available seats with zone and pricing information       |
-| `admin_bookings`  | Detailed booking information for administrative use               |
-| `payment_summary` | Payment information with booking and customer details             |
-| `service_usage`   | Service usage, quantities, unit prices, and service totals        |
-
-</details>
-
-<details>
-<summary><strong>Database Triggers</strong></summary>
-
-| Trigger                     | Event                       | Function                  |
-| --------------------------- | --------------------------- | ------------------------- |
-| `trg_generate_user_id`      | BEFORE INSERT on `users`    | `generate_user_id()`      |
-| `trg_generate_booking_id`   | BEFORE INSERT on `bookings` | `generate_booking_id()`   |
-| `trg_booking_status_update` | AFTER UPDATE on `bookings`  | `update_booking_status()` |
-| `trg_payment_status_update` | AFTER UPDATE on `payments`  | `update_payment_status()` |
-| `trg_check_login_email`        | BEFORE INSERT/UPDATE on `users`             | `check_login_email()`        |
-| `trg_protect_booking_payment`  | BEFORE INSERT/UPDATE on `bookings`          | `protect_booking_payment()`  |
-| `trg_protect_booking_services` | BEFORE INSERT/UPDATE/DELETE on `booking_services` | `protect_booking_services()` |
-
-</details>
-
-<details>
-<summary><strong>Business Rules & Data Integrity</strong></summary>
-
-### Authentication
-
-* Email addresses must be unique, including across customer login emails and receptionist work emails.
-* Receptionists log in with their café `work_email`; login emails are cross-checked by a trigger.
-* Passwords are stored using bcrypt hashing.
-* JWT authentication is used for protected API operations.
-* Users can access their own protected resources.
-* Admin users have additional management access; receptionists have staff access.
-
-### Booking
-
-* A booking belongs to a specific user and seat, or to a walk-in guest (guest details required).
-* Bookings use PostgreSQL `TSTZRANGE` for time slots.
-* A seat cannot have overlapping non-canceled bookings.
-* The `hourly_rate` is locked at booking time so later zone price changes do not alter the price.
-* Only valid booking status transitions are allowed.
-* Confirmed bookings can be checked in.
-* Checked-in bookings can be checked out.
-* Bookings can be canceled.
-
-### Services
-
-* Services can be attached to bookings.
-* Each booking-service combination is unique.
-* Service quantities and prices are stored with the booking service.
-
-### Payments
-
 * A booking can have at most one payment.
 * Payment methods are restricted to the defined `payment_method` domain.
 * Payment statuses are restricted to the defined `payment_status` domain.
@@ -746,120 +458,34 @@ total_price
 * Paid bookings require a refund process instead of cancellation.
 
 </details>
+
+---
 
 <details>
 <summary><strong>API Documentation</strong></summary>
 
 When the FastAPI backend is running, interactive API documentation is available through:
-
-```text
+```
 http://127.0.0.1:8000/docs
 ```
 
 OpenAPI specification:
-
-```text
+```
 http://127.0.0.1:8000/openapi.json
 ```
 
 </details>
 
-<details>
-<summary><strong>Backend Setup</strong></summary>
+---
 
-### 1. Create a virtual environment
+## Quick Start
 
-```bash
-python -m venv .venv
-```
-
-### 2. Activate the virtual environment
-
-Windows:
-
-```bash
-.venv\Scripts\activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install fastapi uvicorn psycopg[binary] python-dotenv bcrypt PyJWT email-validator
-```
-
-### 4. Configure environment variables
-
-Copy `.env.example` to `.env` (project root) and fill in your values:
-
-```env
-DB_HOST=localhost
-DB_PORT=5433
-DB_NAME=study_cafe
-DB_USER=your_database_user
-DB_PASSWORD=your_database_password
-JWT_SECRET_KEY=change-this-to-a-long-random-string
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=1440
-# Work email domains allowed for receptionist accounts.
-STAFF_EMAIL_DOMAINS=studycafe.example
-```
-
-The backend reads `.env` from the project root. You may also set `CORS_ORIGINS` (comma-separated) for the frontend.
-
-### 5. Create the first admin account (optional)
-
-If the database has no admin yet, run from the `backend` directory:
-
-```bash
-python create_admin.py --name "Admin" --email admin@example.com
-```
-
-### 6. Start the FastAPI server
-
-From the `backend` directory:
-
-```bash
-uvicorn main:app --reload
-```
-
-The API will be available at:
-
-```text
-http://127.0.0.1:8000
-```
-
-</details>
-
-<details>
-<summary><strong>Database Setup</strong></summary>
-
-Create the PostgreSQL database and execute the SQL files in the appropriate order:
-
-```bash
-# Create the database
-createdb study_cafe
-# Or from psql: CREATE DATABASE study_cafe;
-```
-
-Then run the SQL scripts in order:
-
-```bash
-psql -d study_cafe -f database/schema.sql
-psql -d study_cafe -f database/functions.sql
-psql -d study_cafe -f database/triggers.sql
-psql -d study_cafe -f database/procedures.sql
-psql -d study_cafe -f database/views.sql
-psql -d study_cafe -f database/seed.sql
-```
-
-The database uses PostgreSQL features including:
-
-* `TSTZRANGE` and range operators
-* GiST indexing and exclusion constraints
-* Functions, stored procedures, triggers, and views
-* Custom domains and composite types
-
-</details>
+See **[SETUP.md](docs/SETUP.md)** for complete setup instructions including:
+- Local development setup (backend + frontend)
+- Database initialization
+- Render deployment guide
+- Environment variable reference
+- Troubleshooting
 
 ## Architecture
 
