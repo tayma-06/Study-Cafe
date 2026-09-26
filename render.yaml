@@ -44,6 +44,25 @@ services:
           name: study-cafe-db
           property: connectionString
 
+- type: cron
+    name: db-keepalive
+    schedule: "*/4 * * * *"
+    runtime: python
+    buildCommand: pip install psycopg[binary] python-dotenv
+    startCommand: python -c "
+import os, psycopg
+try:
+    psycopg.connect(os.getenv('DATABASE_URL'), connect_timeout=5).close()
+    print('keepalive ok')
+except Exception as e:
+    print(f'keepalive failed: {e}')
+"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: study-cafe-db
+          property: connectionString
+
 databases:
   - name: study-cafe-db
     databaseName: study_cafe
