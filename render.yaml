@@ -44,7 +44,7 @@ services:
           name: study-cafe-db
           property: connectionString
 
-- type: cron
+  - type: cron
     name: db-keepalive
     schedule: "*/4 * * * *"
     runtime: python
